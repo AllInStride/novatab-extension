@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NovaTab SVG to Icon Converter</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background: #f5f5f5;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+        .svg-preview {
+            text-align: center;
+            margin: 20px 0;
+            padding: 20px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .svg-preview svg {
+            max-width: 200px;
+            height: auto;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+        }
+        .icon-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+        .icon-box {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+        .icon-box h3 {
+            margin-top: 0;
+            color: #555;
+        }
+        canvas {
+            border: 1px solid #ddd;
+            display: block;
+            margin: 10px auto;
+            image-rendering: -webkit-optimize-contrast;
+            image-rendering: crisp-edges;
+        }
+        .download-btn {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-top: 10px;
+            font-size: 14px;
+        }
+        .download-btn:hover {
+            background: #45a049;
+        }
+        .download-all-btn {
+            background: #2196F3;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            display: block;
+            margin: 20px auto;
+        }
+        .download-all-btn:hover {
+            background: #1976D2;
+        }
+        .instructions {
+            background: #e3f2fd;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        .status {
+            text-align: center;
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 4px;
+            display: none;
+        }
+        .status.success {
+            background: #c8e6c9;
+            color: #2e7d32;
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <h1>NovaTab SVG to Icon Converter</h1>
+    
+    <div class="instructions">
+        <p><strong>Instructions:</strong> This tool will convert your SVG logo into all required icon sizes for the NovaTab extension.</p>
+        <p>Click "Download" under each icon to save it individually, or use "Download All Icons" to get them all at once.</p>
+        <p>Save the files in the <code>icons/</code> directory with the exact filenames shown.</p>
+    </div>
+
+    <div class="svg-preview">
+        <h2>Original SVG Logo</h2>
+        <div id="svgContainer"></div>
+    </div>
+
+    <button class="download-all-btn" onclick="downloadAllIcons()">Download All Icons</button>
+    <div class="status" id="status"></div>
+    
+    <div class="icon-container" id="iconContainer"></div>
+
+    <script>
+        // Your SVG code
+        const svgCode = `<svg width="200" height="200" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+        <linearGradient id="squareGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" style="stop-color:#219ebc;stop-opacity:1" />
+            <stop offset="100%" style="stop-color:#1b7fa6;stop-opacity:1" />
+        </linearGradient>
+    </defs>
+
+    <rect x="10" y="10" width="42" height="42" rx="4" class="grid-square" fill="url(#squareGradient)"/>
+    <rect x="55" y="10" width="42" height="42" rx="4" class="grid-square" fill="url(#squareGradient)"/>
+    <rect x="100" y="10" width="42" height="42" rx="4" class="grid-square" fill="url(#squareGradient)"/>
+    <rect x="145" y="10" width="42" height="42" rx="4" class="grid-square" fill="url(#squareGradient)"/>
+
+    <rect x="10" y="55" width="42" height="42" rx="4" class="grid-square" fill="url(#squareGradient)"/>
+    <rect x="55" y="55" width="42" height="42" rx="4" class="grid-square" fill="url(#squareGradient)"/>
+    <rect x="100" y="55" width="42" height="42" rx="4" class="grid-square" fill="url(#squareGradient)"/>
+    <rect x="145" y="55" width="42" height="42" rx="4" class="grid-square" fill="url(#squareGradient)"/>
+
+    <rect x="10" y="100" width="42" height="42" rx="4" class="grid-square" fill="url(#squareGradient)"/>
+    <rect x="55" y="100" width="42" height="42" rx="4" class="grid-square" fill="url(#squareGradient)"/>
+    <rect x="100" y="100" width="42" height="42" rx="4" class="grid-square" fill="url(#squareGradient)"/>
+    <rect x="145" y="100" width="42" height="42" rx="4" class="grid-square" fill="url(#squareGradient)"/>
+
+    <rect x="10" y="145" width="42" height="42" rx="4" class="grid-square" fill="url(#squareGradient)"/>
+    <rect x="55" y="145" width="42" height="42" rx="4" class="grid-square" fill="url(#squareGradient)"/>
+    <rect x="100" y="145" width="42" height="42" rx="4" class="grid-square" fill="url(#squareGradient)"/>
+    <rect x="145" y="145" width="42" height="42" rx="4" class="grid-square" fill="url(#squareGradient)"/>
+</svg>`;
+
+        // Display the original SVG
+        document.getElementById('svgContainer').innerHTML = svgCode;
+
+        // Icon sizes required for Chrome extension
+        const iconSizes = [
+            { size: 16, name: 'icon16.png' },
+            { size: 32, name: 'icon32.png' },
+            { size: 48, name: 'icon48.png' },
+            { size: 128, name: 'icon128.png' },
+            { size: 32, name: 'default_favicon.png' }
+        ];
+
+        // Convert SVG to canvas
+        function svgToCanvas(svgString, size, callback) {
+            const canvas = document.createElement('canvas');
+            canvas.width = size;
+            canvas.height = size;
+            const ctx = canvas.getContext('2d');
+
+            // Create a blob from the SVG string
+            const blob = new Blob([svgString], { type: 'image/svg+xml' });
+            const url = URL.createObjectURL(blob);
+
+            const img = new Image();
+            img.onload = function() {
+                // Clear canvas
+                ctx.clearRect(0, 0, size, size);
+                
+                // Enable smooth scaling for better quality
+                ctx.imageSmoothingEnabled = true;
+                ctx.imageSmoothingQuality = 'high';
+                
+                // Draw the image
+                ctx.drawImage(img, 0, 0, size, size);
+                
+                URL.revokeObjectURL(url);
+                callback(canvas);
+            };
+            
+            img.onerror = function() {
+                console.error('Error loading SVG');
+                URL.revokeObjectURL(url);
+            };
+            
+            img.src = url;
+        }
+
+        // Download a single icon
+        function downloadIcon(canvas, filename) {
+            canvas.toBlob(blob => {
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = filename;
+                a.click();
+                URL.revokeObjectURL(url);
+            }, 'image/png');
+        }
+
+        // Download all icons as a zip (requires manual download of each)
+        async function downloadAllIcons() {
+            const status = document.getElementById('status');
+            status.textContent = 'Downloading all icons...';
+            status.className = 'status success';
+            
+            // Download each icon with a small delay to avoid browser blocking
+            for (let i = 0; i < iconSizes.length; i++) {
+                const { size, name } = iconSizes[i];
+                const canvas = document.querySelector(`canvas[data-filename="${name}"]`);
+                if (canvas) {
+                    setTimeout(() => {
+                        downloadIcon(canvas, name);
+                    }, i * 200); // 200ms delay between each download
+                }
+            }
+            
+            setTimeout(() => {
+                status.textContent = 'All icons downloaded! Check your Downloads folder.';
+            }, iconSizes.length * 200 + 500);
+        }
+
+        // Generate all icon sizes
+        iconSizes.forEach(({ size, name }) => {
+            const container = document.createElement('div');
+            container.className = 'icon-box';
+            
+            const title = document.createElement('h3');
+            title.textContent = `${name} (${size}×${size})`;
+            container.appendChild(title);
+            
+            svgToCanvas(svgCode, size, (canvas) => {
+                canvas.setAttribute('data-filename', name);
+                container.appendChild(canvas);
+                
+                const downloadBtn = document.createElement('button');
+                downloadBtn.className = 'download-btn';
+                downloadBtn.textContent = 'Download';
+                downloadBtn.onclick = () => downloadIcon(canvas, name);
+                container.appendChild(downloadBtn);
+            });
+            
+            document.getElementById('iconContainer').appendChild(container);
+        });
+
+        // Also log the base64 version for potential inline use
+        console.log('Base64 encoded SVG:', btoa(svgCode));
+    </script>
+</body>
+</html> 

@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=1280, initial-scale=1.0">
+  <title>NovaTab Image Resizer</title>
+  <style>
+    body {
+      font-family: 'Inter', Arial, sans-serif;
+      background: #f5f7fa;
+      color: #222;
+      margin: 0;
+      padding: 40px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    h1 {
+      margin-bottom: 24px;
+      font-size: 2rem;
+    }
+    .image-list {
+      display: flex;
+      gap: 32px;
+      margin-bottom: 32px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    .image-box {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      border: 1px solid #e0e5ec;
+      border-radius: 8px;
+      background: #fff;
+      padding: 16px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+      width: 420px;
+      margin-bottom: 16px;
+    }
+    .image-box img, .image-box canvas {
+      max-width: 400px;
+      max-height: 250px;
+      margin-bottom: 12px;
+      border-radius: 4px;
+      border: 1px solid #ccc;
+      background: #fafbfc;
+    }
+    .download-btn {
+      background: #007AFF;
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+      padding: 8px 18px;
+      font-size: 1rem;
+      cursor: pointer;
+      margin-top: 8px;
+      transition: background 0.2s;
+    }
+    .download-btn:hover {
+      background: #005ecb;
+    }
+    .file-input {
+      margin-bottom: 24px;
+    }
+  </style>
+</head>
+<body>
+  <h1>NovaTab Image Resizer (1280x800)</h1>
+  <p>Select up to 3 images to resize to 1280x800 pixels. The resized images will appear below with download buttons.</p>
+  <input class="file-input" type="file" id="imageInput" accept="image/*" multiple max="3">
+  <div class="image-list" id="imageList"></div>
+  <script>
+    const imageInput = document.getElementById('imageInput');
+    const imageList = document.getElementById('imageList');
+
+    imageInput.addEventListener('change', handleFiles);
+
+    function handleFiles() {
+      imageList.innerHTML = '';
+      const files = Array.from(imageInput.files).slice(0, 3);
+      files.forEach((file, idx) => {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          const img = new Image();
+          img.onload = function() {
+            const box = document.createElement('div');
+            box.className = 'image-box';
+            box.innerHTML = `<strong>Original: ${file.name}</strong>`;
+            box.appendChild(img);
+            // Resize
+            const canvas = document.createElement('canvas');
+            canvas.width = 1280;
+            canvas.height = 800;
+            const ctx = canvas.getContext('2d');
+            // Fill background white
+            ctx.fillStyle = '#fff';
+            ctx.fillRect(0, 0, 1280, 800);
+            // Fit image into canvas (contain)
+            const scale = Math.min(1280 / img.width, 800 / img.height);
+            const w = img.width * scale;
+            const h = img.height * scale;
+            const x = (1280 - w) / 2;
+            const y = (800 - h) / 2;
+            ctx.drawImage(img, x, y, w, h);
+            box.appendChild(canvas);
+            // Download button
+            const btn = document.createElement('button');
+            btn.className = 'download-btn';
+            btn.textContent = 'Download 1280x800';
+            btn.onclick = () => {
+              const link = document.createElement('a');
+              link.download = file.name.replace(/(\.[^.]+)?$/, '_1280x800.png');
+              link.href = canvas.toDataURL('image/png');
+              link.click();
+            };
+            box.appendChild(btn);
+            imageList.appendChild(box);
+          };
+          img.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+      });
+    }
+  </script>
+</body>
+</html> 

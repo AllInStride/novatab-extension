@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NovaTab Settings</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="options.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>NovaTab Settings</h1>
+        </header>
+
+        <div class="tabs">
+            <button class="tab-link active" data-tab="content-management-tab">Content Management</button>
+            <button class="tab-link" data-tab="appearance-settings-tab">Appearance</button>
+            <button class="tab-link" data-tab="data-management-tab">Data</button>
+        </div>
+
+        <div id="content-management-tab" class="tab-content active">
+            <section class="settings-section">
+                <h2>Content Source</h2>
+                <p>Choose how to populate your new tab page. Your data for each mode is saved separately.</p>
+                <div class="radio-group">
+                    <label>
+                        <input type="radio" name="dataSourceMode" value="manual" checked> Manual Management
+                    </label>
+                    <label>
+                        <input type="radio" name="dataSourceMode" value="bookmarks"> Use Bookmark Folder
+                    </label>
+                </div>
+            </section>
+
+            <div id="manual-mode-section">
+                <section class="settings-section">
+                    <h2>Manual Categories & Sites</h2>
+                    <p>Drag and drop categories to reorder them. Sites within categories are automatically sorted alphabetically on the new tab page.</p>
+                    <div id="manual-categories-list">
+                    </div>
+                    <button id="add-manual-category-btn" class="button primary-button">Add New Category</button>
+                </section>
+            </div>
+
+            <div id="bookmark-mode-section" style="display: none;">
+                <section class="settings-section">
+                    <h2>Select Bookmark Folder</h2>
+                    <p>Choose a main bookmark folder. Its direct subfolders will become your categories, and bookmarks within those subfolders will be your sites.</p>
+                    <select id="bookmark-folder-selector">
+                        <option value="">Loading bookmark folders...</option>
+                    </select>
+                    <button id="refresh-bookmark-categories-btn" class="button secondary-button" style="margin-top: 10px;">Refresh Bookmark Categories</button>
+                </section>
+                <section class="settings-section">
+                    <h2>Category Order (from Bookmarks)</h2>
+                    <p>Drag and drop to reorder categories derived from your selected bookmark folder.</p>
+                    <ul id="bookmark-category-order-list" class="sortable-list">
+                    </ul>
+                </section>
+            </div>
+        </div>
+
+        <div id="appearance-settings-tab" class="tab-content">
+            <section class="settings-section">
+                <h2>Layout & Sizing</h2>
+                <div class="form-group">
+                    <label for="setting-max-categories-per-row">Max Categories Per Row:</label>
+                    <input type="number" id="setting-max-categories-per-row" placeholder="2" min="1">
+                </div>
+                <div class="form-group">
+                    <label for="setting-max-site-cards-per-row">Max Site Cards Per Row:</label>
+                    <input type="number" id="setting-max-site-cards-per-row" placeholder="5" min="1">
+                </div>
+                <div class="form-group">
+                    <label for="setting-card-min-width">Site Card Minimum Width:</label>
+                    <input type="text" id="setting-card-min-width" placeholder="70px">
+                </div>
+                <div class="form-group">
+                    <label for="setting-favicon-wrapper-size">Favicon Area Size:</label>
+                    <input type="text" id="setting-favicon-wrapper-size" placeholder="38px">
+                </div>
+            </section>
+            <section class="settings-section">
+                <h2>Typography</h2>
+                <div class="form-group">
+                    <label for="setting-category-title-font-size">Category Title Font Size:</label>
+                    <input type="text" id="setting-category-title-font-size" placeholder="16px">
+                </div>
+                <div class="form-group">
+                    <label for="setting-site-name-font-size">Site Name Font Size:</label>
+                    <input type="text" id="setting-site-name-font-size" placeholder="10px">
+                </div>
+            </section>
+            <section class="settings-section">
+                <h2>Background Gradient</h2>
+                <div class="form-group color-picker-group">
+                    <div>
+                        <label for="setting-gradient-start-color">Start Color:</label>
+                        <input type="color" id="setting-gradient-start-color" value="#F5F7FA">
+                    </div>
+                    <div>
+                        <label for="setting-gradient-end-color">End Color:</label>
+                        <input type="color" id="setting-gradient-end-color" value="#E0E5EC">
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <div id="data-management-tab" class="tab-content">
+            <section class="settings-section">
+                <h2>Export Settings</h2>
+                <p>Save your current NovaTab configuration to a file.</p>
+                <button id="export-settings-btn" class="button secondary-button">Export Configuration</button>
+            </section>
+            <section class="settings-section">
+                <h2>Import Settings</h2>
+                <p>Load a previously exported configuration file.</p>
+                <input type="file" id="import-settings-input" accept=".json" style="display: none;">
+                <button id="import-settings-btn" class="button secondary-button">Import Configuration</button>
+            </section>
+            <section class="settings-section">
+                <h2>Reset All Settings</h2>
+                <p>Reset all settings to defaults. This cannot be undone.</p>
+                <button id="reset-all-settings-btn" class="button danger-button">Reset All Settings</button>
+            </section>
+        </div>
+
+        <footer>
+            <button id="save-all-settings-btn" class="button primary-button large-button">Save All Settings</button>
+            <p id="status-message" role="status"></p>
+        </footer>
+
+        <footer class="options-footer">
+            <div class="footer-content">
+                <div class="version-info">
+                    Version <span id="extension-version">1.1.0</span>
+                </div>
+                <div class="footer-links">
+                    <a href="#" id="rate-extension" target="_blank">Rate on Chrome Web Store</a>
+                    <span class="separator">•</span>
+                    <a href="#" id="privacy-policy" target="_blank">Privacy Policy</a>
+                    <span class="separator">•</span>
+                    <a href="#" id="report-issue" target="_blank">Report an Issue</a>
+                </div>
+            </div>
+        </footer>
+    </div>
+
+    <script src="utils.js"></script>
+    <script src="options.js"></script>
+</body>
+</html>
