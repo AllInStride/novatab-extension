@@ -3,7 +3,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const categoriesContainer = document.getElementById('categories-container');
     const bodyElement = document.body; 
     let settings = {};
-    let appDataForDisplay = { categories: [], categoryOrder: [] }; 
+    let appDataForDisplay = { categories: [], categoryOrder: [] };
 
     // For context menu and modal
     const customContextMenu = document.getElementById('custom-context-menu');
@@ -13,92 +13,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const modalSaveIconBtn = document.getElementById('modal-save-icon-btn');
     const modalCancelIconBtn = document.getElementById('modal-cancel-icon-btn');
     const customIconUrlInput = document.getElementById('custom-icon-url-input');
-    let currentSiteForModal = null; 
-
-    // Default values as constants
-    const DEFAULT_SETTINGS = {
-        maxCategoriesPerRow: '2', 
-        maxSiteCardsPerRow: '5',  
-        cardMinWidth: '70px', 
-        categoryTitleFontSize: '16px', 
-        siteNameFontSize: '10px',   
-        faviconWrapperSize: '38px', 
-        gradientStartColor: '#F5F7FA', 
-        gradientEndColor: '#E0E5EC'  
-    };
-
-    const DEFAULT_APP_DATA = {
-        categories: [], 
-        categoryOrder: []
-    };
-
-    console.log("NovaTab: Starting enhanced new_tab.js script...");
-
-    // Improved URL parsing and hostname extraction
-    function getEffectiveHostname(url) {
-        if (!url || typeof url !== 'string') {
-            console.warn('NovaTab: Invalid URL provided to getEffectiveHostname:', url);
-            return 'example.com';
-        }
-
-        try {
-            // Ensure URL has protocol
-            const urlToProcess = url.match(/^https?:\/\//) ? url : `https://${url}`;
-            const urlObj = new URL(urlToProcess);
-            
-            if (!urlObj.hostname || urlObj.hostname === 'localhost') {
-                return urlObj.hostname || 'localhost';
-            }
-
-            const parts = urlObj.hostname.split('.');
-            
-            // For single part hostnames (like localhost)
-            if (parts.length === 1) {
-                return urlObj.hostname;
-            }
-            
-            // For two parts (like google.com)
-            if (parts.length === 2) {
-                return urlObj.hostname;
-            }
-
-            // For three or more parts, try to get the domain
-            // Handle common country code TLDs (co.uk, com.au, etc.)
-            const commonCcTlds = ['co', 'com', 'org', 'gov', 'net', 'edu', 'ac'];
-            const lastPart = parts[parts.length - 1];
-            const secondLastPart = parts[parts.length - 2];
-            
-            if (parts.length >= 3 && lastPart.length === 2 && commonCcTlds.includes(secondLastPart)) {
-                // Handle cases like amazon.co.uk
-                return parts.slice(-3).join('.');
-            }
-            
-            // Default to last two parts (domain.tld)
-            return parts.slice(-2).join('.');
-            
-        } catch (error) {
-            console.warn(`NovaTab: Error parsing URL "${url}":`, error.message);
-            return 'example.com';
-        }
-    }
-
-    // Improved favicon URL generation
-    function getFaviconUrl(site) {
-        if (site.customIconUrl) {
-            return site.customIconUrl;
-        }
-
-        if (!site.url) {
-            return 'icons/default_favicon.png';
-        }
-
-        const hostname = getEffectiveHostname(site.url);
-        if (hostname === 'example.com') {
-            return 'icons/default_favicon.png';
-        }
-
-        return `https://www.google.com/s2/favicons?domain=${encodeURIComponent(hostname)}&sz=64`;
-    }
+    let currentSiteForModal = null;
 
     // Debounced loading function for better performance
     let loadingTimeout = null;
@@ -106,7 +21,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (loadingTimeout) {
             clearTimeout(loadingTimeout);
         }
-        
+
         loadingTimeout = setTimeout(async () => {
             await loadAndRender();
         }, 100);
@@ -115,26 +30,34 @@ document.addEventListener('DOMContentLoaded', async () => {
     async function loadAndRender() {
         try {
             const result = await chrome.storage.local.get(['appSettings', 'activeDisplayData']);
-            
-            settings = { ...DEFAULT_SETTINGS };
+
+            settings = { ...NOVATAB_CONSTANTS.DEFAULT_SETTINGS };
             if (result.appSettings) {
-                Object.keys(DEFAULT_SETTINGS).forEach(key => {
+                Object.keys(NOVATAB_CONSTANTS.DEFAULT_SETTINGS).forEach(key => {
                     if (result.appSettings[key] !== undefined) {
                         settings[key] = result.appSettings[key];
                     }
                 });
             }
-            
+
             if (result.activeDisplayData && Array.isArray(result.activeDisplayData.categories)) {
                 appDataForDisplay = result.activeDisplayData;
             } else {
-                appDataForDisplay = { ...DEFAULT_APP_DATA };
+                // Assuming NOVATAB_CONSTANTS.DEFAULT_APP_DATA structure is { categories: [], categoryOrder: [] }
+                // If it's the full structure, might need adjustment here or in how activeDisplayData is stored/retrieved.
+                appDataForDisplay = { 
+                    categories: NOVATAB_CONSTANTS.DEFAULT_APP_DATA.manual.categories, 
+                    categoryOrder: NOVATAB_CONSTANTS.DEFAULT_APP_DATA.manual.categoryOrder 
+                };
             }
         } catch (error) {
             console.error("NovaTab: Error loading data:", error);
             showErrorMessage("Failed to load settings. Using defaults.");
-            settings = { ...DEFAULT_SETTINGS };
-            appDataForDisplay = { ...DEFAULT_APP_DATA };
+            settings = { ...NOVATAB_CONSTANTS.DEFAULT_SETTINGS };
+            appDataForDisplay = { 
+                categories: NOVATAB_CONSTANTS.DEFAULT_APP_DATA.manual.categories, 
+                categoryOrder: NOVATAB_CONSTANTS.DEFAULT_APP_DATA.manual.categoryOrder 
+            };
         }
 
         applySettingsToDOM();
@@ -324,9 +247,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         const faviconImg = document.createElement('img'); 
         faviconImg.className = 'site-favicon';
         faviconImg.alt = `${site.name} Favicon`;
-        faviconImg.src = getFaviconUrl(site);
+        faviconImg.src = URLUtils.getFaviconUrl(site); // Use URLUtils
         faviconImg.dataset.retryCount = '0';
-        
+
         // Improved error handling for favicon with multiple fallbacks
         faviconImg.onerror = function() {
             const retryCount = parseInt(this.dataset.retryCount) || 0;
@@ -457,7 +380,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const newIconUrl = customIconUrlInput.value.trim();
         
         // Validate URL if provided
-        if (newIconUrl && !isValidUrl(newIconUrl)) {
+        if (newIconUrl && !URLUtils.isValidUrl(newIconUrl)) { // Use URLUtils.isValidUrl
             alert("Please enter a valid URL (starting with http:// or https://).");
             return;
         }
@@ -478,25 +401,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
-    function isValidUrl(url) {
-        try {
-            const urlObj = new URL(url);
-            return urlObj.protocol === 'http:' || urlObj.protocol === 'https:';
-        } catch {
-            return false;
-        }
-    }
-
     async function saveCustomIconToStorage(newIconUrl) {
-        const DEFAULT_APP_DATA_FULL = {
-            activeMode: 'manual',
-            manual: { categories: [], categoryOrder: [] },
-            bookmarks: { folderId: null, categoryOrder: [], iconOverrides: {} }
-        };
-
+        // Use NOVATAB_CONSTANTS for default app data and settings
         const storageResult = await chrome.storage.local.get(['appData', 'appSettings']);
-        let fullAppData = storageResult.appData || { ...DEFAULT_APP_DATA_FULL };
-        const currentSettings = storageResult.appSettings || DEFAULT_SETTINGS;
+        let fullAppData = storageResult.appData || GeneralUtils.deepClone(NOVATAB_CONSTANTS.DEFAULT_APP_DATA);
+        const currentSettings = storageResult.appSettings || { ...NOVATAB_CONSTANTS.DEFAULT_SETTINGS };
 
         let siteUpdated = false;
 
@@ -545,60 +454,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
-    async function generateActiveDisplayData(fullAppData) {
-        let newActiveDisplayData = { categories: [], categoryOrder: [] };
-        const activeMode = fullAppData.activeMode || 'manual';
-
-        if (activeMode === 'manual') {
-            newActiveDisplayData.categories = (fullAppData.manual.categories || []).map(cat => ({
-                ...cat,
-                sites: (cat.sites || []).map(s => ({ ...s }))
-            }));
-            newActiveDisplayData.categoryOrder = [...(fullAppData.manual.categoryOrder || [])];
-        } else if (activeMode === 'bookmarks' && fullAppData.bookmarks.folderId) {
-            try {
-                const tempBookmarks = await chrome.bookmarks.getChildren(fullAppData.bookmarks.folderId);
-                const derivedCats = [];
-
-                for (const folder of tempBookmarks) {
-                    if (!folder.url) {
-                        const sitesFromBookmark = [];
-                        const bookmarksInFolder = await chrome.bookmarks.getChildren(folder.id);
-
-                        bookmarksInFolder.forEach(bm => {
-                            if (bm.url) {
-                                sitesFromBookmark.push({
-                                    name: bm.title,
-                                    url: bm.url,
-                                    customIconUrl: (fullAppData.bookmarks.iconOverrides && fullAppData.bookmarks.iconOverrides[bm.url]) || ''
-                                });
-                            }
-                        });
-
-                        if (sitesFromBookmark.length > 0) {
-                            derivedCats.push({ id: folder.id, name: folder.title, sites: sitesFromBookmark });
-                        }
-                    }
-                }
-
-                newActiveDisplayData.categories = derivedCats;
-                const derivedCategoryMap = new Map(derivedCats.map(c => [c.id, c]));
-                let finalOrder = (fullAppData.bookmarks.categoryOrder || []).filter(id => derivedCategoryMap.has(id));
-
-                derivedCats.forEach(cat => {
-                    if (!finalOrder.includes(cat.id)) {
-                        finalOrder.push(cat.id);
-                    }
-                });
-
-                newActiveDisplayData.categoryOrder = finalOrder;
-            } catch (error) {
-                console.error("NovaTab: Error generating bookmark display data:", error);
-            }
-        }
-
-        return newActiveDisplayData;
-    }
+    // The local generateActiveDisplayData function has been removed.
+    // activeDisplayData is now generated by DataSyncUtils.generateActiveDisplayData
+    // and kept up-to-date in storage by background.js and options.js.
 
     // Initialize the application - Fixed race condition
     (async () => {

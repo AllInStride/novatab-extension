@@ -159,15 +159,59 @@ const ValidationUtils = {
             name: typeof category.name === 'string' ? category.name.trim() || 'Unnamed Category' : 'Unnamed Category',
             sites: Array.isArray(category.sites) ? category.sites.map(site => this.validateSite(site)) : []
         };
-    }
+    },
+
+    // Merging validators from options.js into ValidationUtils
+    isValidCategoriesPerRow(value) {
+        const num = parseInt(value);
+        return !isNaN(num) && num >= 1 && num <= 4;
+    },
+
+    isValidSiteCardsPerRow(value) {
+        const num = parseInt(value);
+        return !isNaN(num) && num >= 3 && num <= 10;
+    },
+
+    isValidCardMinWidth(value) {
+        const match = value.match(/^(\d+)px$/);
+        if (!match) return false;
+        const num = parseInt(match[1]);
+        return num >= 50 && num <= 150;
+    },
+
+    isValidFaviconSize(value) { // Renamed from isValidFaviconWrapperSize for generality
+        const match = value.match(/^(\d+)px$/);
+        if (!match) return false;
+        const num = parseInt(match[1]);
+        return num >= 24 && num <= 64;
+    },
+
+    isValidFontSize(value) {
+        const match = value.match(/^(\d+)px$/);
+        if (!match) return false;
+        const num = parseInt(match[1]);
+        return num >= 8 && num <= 24;
+    },
+    // isValidColor is already covered by isValidHexColor
+    // isValidUrl from the local validators object in options.js was:
+    // (url) => { try { new URL(url); return url.startsWith('http://') || url.startsWith('https://'); } catch { return false; } }
+    // URLUtils.isValidUrl is more robust, so we'll rely on that if strict http/https is needed.
+    // If a simpler URL check is needed elsewhere, it can be added or URLUtils.isValidUrl can be used.
 };
 
 const StorageUtils = {
     async get(keys) {
         try {
-            return await chrome.storage.local.get(keys);
+            const result = await chrome.storage.local.get(keys);
+            if (chrome.runtime.lastError) {
+                // Adding a property to distinguish chrome.runtime.lastError
+                const error = { ...chrome.runtime.lastError, isChromeRuntimeError: true };
+                ErrorUtils.logError(error, 'StorageUtils.get - runtime.lastError');
+                return {}; 
+            }
+            return result;
         } catch (error) {
-            console.error('NovaTab StorageUtils: Error getting storage data:', error);
+            ErrorUtils.logError(error, 'StorageUtils.get');
             return {};
         }
     },
@@ -175,9 +219,14 @@ const StorageUtils = {
     async set(data) {
         try {
             await chrome.storage.local.set(data);
+            if (chrome.runtime.lastError) {
+                const error = { ...chrome.runtime.lastError, isChromeRuntimeError: true };
+                ErrorUtils.logError(error, 'StorageUtils.set - runtime.lastError');
+                return false; 
+            }
             return true;
         } catch (error) {
-            console.error('NovaTab StorageUtils: Error setting storage data:', error);
+            ErrorUtils.logError(error, 'StorageUtils.set');
             return false;
         }
     },
@@ -332,9 +381,15 @@ const GeneralUtils = {
 
     async safeAsync(asyncFunc, context = 'unknown') {
         try {
-            return await asyncFunc();
+            const result = await asyncFunc();
+            if (chrome.runtime.lastError) {
+                const error = { ...chrome.runtime.lastError, isChromeRuntimeError: true };
+                ErrorUtils.logError(error, `${context} - runtime.lastError`);
+                return null;
+            }
+            return result;
         } catch (error) {
-            console.error(`NovaTab Error in ${context}:`, error);
+            ErrorUtils.logError(error, context);
             return null;
         }
     }
@@ -364,52 +419,85 @@ const ErrorUtils = {
 
 ValidationUtils.generateUUID = GeneralUtils.generateUUID;
 
-// Validators for different input types
-const validators = {
-    isValidUrl: (url) => {
-        if (!url || typeof url !== 'string') return false;
-        
-        try {
-            const urlObj = new URL(url);
-            return urlObj.protocol === 'http:' || urlObj.protocol === 'https:';
-        } catch {
-            return false;
+// The 'validators' object is now merged into ValidationUtils and can be removed.
+
+const DataSyncUtils = {
+    async generateActiveDisplayData(appData, bookmarksApi) {
+        if (!appData) {
+            ErrorUtils.logError(new Error("appData is undefined"), 'DataSyncUtils.generateActiveDisplayData appData check');
+            return { categories: [], categoryOrder: [] }; 
         }
-    },
-    
-    isValidCategoriesPerRow: (value) => {
-        const num = parseInt(value);
-        return !isNaN(num) && num >= 1 && num <= 4;
-    },
-    
-    isValidSiteCardsPerRow: (value) => {
-        const num = parseInt(value);
-        return !isNaN(num) && num >= 3 && num <= 10;
-    },
-    
-    isValidCardMinWidth: (value) => {
-        const match = value.match(/^(\d+)px$/);
-        if (!match) return false;
-        const num = parseInt(match[1]);
-        return num >= 50 && num <= 150;
-    },
-    
-    isValidFaviconSize: (value) => {
-        const match = value.match(/^(\d+)px$/);
-        if (!match) return false;
-        const num = parseInt(match[1]);
-        return num >= 24 && num <= 64;
-    },
-    
-    isValidFontSize: (value) => {
-        const match = value.match(/^(\d+)px$/);
-        if (!match) return false;
-        const num = parseInt(match[1]);
-        return num >= 8 && num <= 24;
-    },
-    
-    isValidColor: (value) => {
-        return /^#[0-9A-F]{6}$/i.test(value);
+
+        const activeMode = appData.activeMode || 'manual';
+        let newActiveDisplayData = { categories: [], categoryOrder: [] };
+
+        try {
+            if (activeMode === 'manual') {
+                // Deep clone manual data to prevent direct modification of appData
+                newActiveDisplayData.categories = GeneralUtils.deepClone(appData.manual?.categories || []);
+                newActiveDisplayData.categoryOrder = GeneralUtils.deepClone(appData.manual?.categoryOrder || []);
+            } else if (activeMode === 'bookmarks') {
+                if (!appData.bookmarks?.folderId) {
+                    console.warn("NovaTab DataSyncUtils: Bookmarks mode is active but no folderId is set. Returning empty display data."); // Kept as console.warn as it's an expected state.
+                    return { categories: [], categoryOrder: [] };
+                }
+                if (!bookmarksApi) {
+                    ErrorUtils.logError(new Error("bookmarksApi is undefined"), 'DataSyncUtils.generateActiveDisplayData bookmarksApi check');
+                    return { categories: [], categoryOrder: [] }; 
+                }
+
+                const derivedCats = [];
+                const rootFolderContents = await GeneralUtils.safeAsync(() => bookmarksApi.getChildren(appData.bookmarks.folderId), 'bookmarksApi.getChildren_root');
+
+                if (rootFolderContents) {
+                    for (const folder of rootFolderContents) {
+                        if (!folder.url) { // It's a sub-folder, treat as a category
+                            const sitesFromBookmark = [];
+                            const bookmarksInFolder = await GeneralUtils.safeAsync(() => bookmarksApi.getChildren(folder.id), `bookmarksApi.getChildren_subfolder_${folder.id}`);
+
+                            if (bookmarksInFolder) {
+                                bookmarksInFolder.forEach(bm => {
+                                    if (bm.url) { // It's a bookmark
+                                        sitesFromBookmark.push({
+                                            name: bm.title || 'Unnamed Bookmark',
+                                            url: bm.url,
+                                            // Apply icon override if it exists
+                                            customIconUrl: (appData.bookmarks.iconOverrides && appData.bookmarks.iconOverrides[bm.url]) || ''
+                                        });
+                                    }
+                                });
+                            }
+
+                            if (sitesFromBookmark.length > 0) {
+                                derivedCats.push({
+                                    id: folder.id, // Use bookmark folder ID as category ID
+                                    name: folder.title || 'Unnamed Category',
+                                    sites: sitesFromBookmark
+                                });
+                            }
+                        }
+                    }
+                }
+                newActiveDisplayData.categories = derivedCats;
+
+                // Ensure categoryOrder is consistent
+                const derivedCategoryMap = new Map(derivedCats.map(c => [c.id, c]));
+                let finalOrder = (appData.bookmarks.categoryOrder || []).filter(id => derivedCategoryMap.has(id));
+
+                derivedCats.forEach(cat => {
+                    if (!finalOrder.includes(cat.id)) {
+                        finalOrder.push(cat.id);
+                    }
+                });
+                newActiveDisplayData.categoryOrder = finalOrder;
+            }
+        } catch (error) {
+            ErrorUtils.logError(error, 'DataSyncUtils.generateActiveDisplayData main processing');
+            return { categories: [], categoryOrder: [] }; 
+        }
+        
+        // Final validation or cleaning step could be added here if necessary
+        return newActiveDisplayData;
     }
 };
 
@@ -421,6 +509,7 @@ if (typeof module !== 'undefined' && module.exports) {
         StorageUtils,
         DOMUtils,
         GeneralUtils,
-        ErrorUtils
+        ErrorUtils,
+        DataSyncUtils
     };
 }

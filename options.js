@@ -1,24 +1,9 @@
 // options.js - Enhanced version with better error handling, validation, and organization
 document.addEventListener('DOMContentLoaded', async () => {
     // --- CONSTANTS ---
-    const DEFAULT_SETTINGS = {
-        maxCategoriesPerRow: '2',
-        maxSiteCardsPerRow: '5',
-        cardMinWidth: '70px',
-        categoryTitleFontSize: '16px',
-        siteNameFontSize: '10px',
-        faviconWrapperSize: '38px',
-        gradientStartColor: '#F5F7FA',
-        gradientEndColor: '#E0E5EC'
-    };
+    // DEFAULT_SETTINGS and DEFAULT_APP_DATA are now sourced from NOVATAB_CONSTANTS in utils.js
 
-    const DEFAULT_APP_DATA = {
-        activeMode: 'manual',
-        manual: { categories: [], categoryOrder: [] },
-        bookmarks: { folderId: null, categoryOrder: [], iconOverrides: {} }
-    };
-
-    const STATUS_TYPES = {
+    const STATUS_TYPES = { // This can remain local if only used here, or be moved to NOVATAB_CONSTANTS if used elsewhere.
         SUCCESS: 'success',
         ERROR: 'error',
         INFO: 'info'
@@ -29,6 +14,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     let appData = {};
     let isLoading = false;
     let saveTimeout = null;
+    let hasUnsavedChanges = false; // Flag for unsaved changes
 
     // --- UI ELEMENTS ---
     const elements = {
@@ -69,52 +55,17 @@ document.addEventListener('DOMContentLoaded', async () => {
         statusMessageUI: document.getElementById('status-message')
     };
 
-    // --- VALIDATION UTILITIES ---
-    const validators = {
-        isPositiveNumber: (value) => {
-            const num = parseInt(value);
-            return !isNaN(num) && num > 0;
-        },
-        
-        isValidPixelValue: (value) => {
-            return /^\d+px$/.test(value) && parseInt(value) > 0;
-        },
-        
-        isValidUrl: (url) => {
-            try {
-                new URL(url);
-                return url.startsWith('http://') || url.startsWith('https://');
-            } catch {
-                return false;
-            }
-        },
-        
-        isValidColor: (color) => {
-            return /^#[0-9A-F]{6}$/i.test(color);
-        }
-    };
-
-    // --- ERROR HANDLING ---
+    // VALIDATION UTILITIES are now sourced from ValidationUtils in utils.js
+    // ERROR HANDLING
     function handleError(error, context = '', showToUser = true) {
         console.error(`NovaTab Error (${context}):`, error);
         if (showToUser) {
-            showStatus(`Error: ${error.message || 'Something went wrong'}`, STATUS_TYPES.ERROR);
+            // Use DOMUtils.showStatus
+            DOMUtils.showStatus(elements.statusMessageUI, `Error: ${error.message || 'Something went wrong'}`, STATUS_TYPES.ERROR);
         }
     }
 
-    function showStatus(message, type = STATUS_TYPES.INFO, duration = 3000) {
-        if (!elements.statusMessageUI) return;
-        
-        elements.statusMessageUI.textContent = message;
-        elements.statusMessageUI.className = type;
-        
-        if (duration > 0) {
-            setTimeout(() => {
-                elements.statusMessageUI.textContent = '';
-                elements.statusMessageUI.className = '';
-            }, duration);
-        }
-    }
+    // showStatus function is removed, using DOMUtils.showStatus directly.
 
     // --- LOADING STATE MANAGEMENT ---
     function setLoadingState(loading) {
@@ -126,6 +77,39 @@ document.addEventListener('DOMContentLoaded', async () => {
             saveBtn.textContent = loading ? 'Saving...' : 'Save All Settings';
         }
     }
+    
+    function setUnsavedChanges(isDirty) {
+        hasUnsavedChanges = isDirty;
+        const statusMsg = "Changes pending. Click 'Save All Settings' to apply.";
+        if (isDirty) {
+            // Show a persistent info message that changes are pending
+            DOMUtils.showStatus(elements.statusMessageUI, statusMsg, STATUS_TYPES.INFO, 0); 
+        } else {
+            // Clear the "pending" message if changes are saved or reverted
+            // Ensure we only clear our specific pending message, not other success/error messages that might be temporary.
+            if (elements.statusMessageUI.textContent === statusMsg && elements.statusMessageUI.className === STATUS_TYPES.INFO) {
+                 elements.statusMessageUI.textContent = '';
+                 elements.statusMessageUI.className = '';
+            }
+        }
+        // Optionally, visually indicate unsaved changes on the save button
+        if (elements.saveAllSettingsBtn) {
+            if (isDirty) {
+                elements.saveAllSettingsBtn.classList.add('unsaved-changes-indicator'); // Requires CSS for actual visual change
+            } else {
+                elements.saveAllSettingsBtn.classList.remove('unsaved-changes-indicator');
+            }
+        }
+    }
+    
+    // Add beforeunload listener for unsaved changes
+    window.addEventListener('beforeunload', (event) => {
+        if (hasUnsavedChanges) {
+            event.preventDefault(); 
+            event.returnValue = ''; // Required for Chrome compatibility.
+            return 'You have unsaved changes. Are you sure you want to leave?'; // Standard message.
+        }
+    });
 
     // --- INITIALIZATION ---
     async function initialize() {
@@ -134,11 +118,11 @@ document.addEventListener('DOMContentLoaded', async () => {
             await loadDataFromStorage();
             setupEventListeners();
             updateUIBasedOnState();
-            
+
             // Apply gradient colors to the page
             document.documentElement.style.setProperty('--gradient-start', appSettings.gradientStartColor);
             document.documentElement.style.setProperty('--gradient-end', appSettings.gradientEndColor);
-            
+
             if (appData.activeMode === 'bookmarks') {
                 await loadBookmarkFoldersIntoSelector();
                 if (appData.bookmarks.folderId) {
@@ -146,8 +130,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                     await renderBookmarkCategoryOrderList();
                 }
             }
-            
-            showStatus('Settings loaded successfully!', STATUS_TYPES.SUCCESS);
+            setUnsavedChanges(false); // Initialize as no unsaved changes
+            DOMUtils.showStatus(elements.statusMessageUI, 'Settings loaded successfully!', STATUS_TYPES.SUCCESS, 3000);
         } catch (error) {
             handleError(error, 'initialization');
         } finally {
@@ -158,27 +142,27 @@ document.addEventListener('DOMContentLoaded', async () => {
     async function loadDataFromStorage() {
         try {
             const result = await chrome.storage.local.get(['appSettings', 'appData']);
-            
-            // Load settings with validation
-            appSettings = { ...DEFAULT_SETTINGS };
+
+            // Load settings with validation using NOVATAB_CONSTANTS
+            appSettings = { ...NOVATAB_CONSTANTS.DEFAULT_SETTINGS };
             if (result.appSettings) {
-                Object.keys(DEFAULT_SETTINGS).forEach(key => {
+                Object.keys(NOVATAB_CONSTANTS.DEFAULT_SETTINGS).forEach(key => {
                     if (result.appSettings[key] !== undefined) {
                         appSettings[key] = result.appSettings[key];
                     }
                 });
             }
 
-            // Load app data with validation
-            appData = JSON.parse(JSON.stringify(DEFAULT_APP_DATA));
+            // Load app data with validation using NOVATAB_CONSTANTS
+            appData = GeneralUtils.deepClone(NOVATAB_CONSTANTS.DEFAULT_APP_DATA); // Use deepClone for safety
             if (result.appData) {
-                appData.activeMode = result.appData.activeMode || DEFAULT_APP_DATA.activeMode;
-                
+                appData.activeMode = result.appData.activeMode || NOVATAB_CONSTANTS.DEFAULT_APP_DATA.activeMode;
+
                 if (result.appData.manual) {
                     appData.manual.categories = validateCategories(result.appData.manual.categories || []);
                     appData.manual.categoryOrder = result.appData.manual.categoryOrder || [];
                 }
-                
+
                 if (result.appData.bookmarks) {
                     appData.bookmarks = {
                         folderId: result.appData.bookmarks.folderId || null,
@@ -187,7 +171,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     };
                 }
             }
-            
+
             // Ensure category order consistency
             if ((!appData.manual.categoryOrder?.length) && appData.manual.categories.length > 0) {
                 appData.manual.categoryOrder = appData.manual.categories.map(c => c.id);
@@ -199,51 +183,43 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     function validateCategories(categories) {
-        return categories.map(cat => ({
-            ...cat,
-            id: cat.id || generateUUID(),
-            name: cat.name || 'Unnamed Category',
-            sites: (cat.sites || []).map(site => ({
-                name: site.name || '',
-                url: site.url || '',
-                customIconUrl: site.customIconUrl || ''
-            }))
-        }));
+        // Use ValidationUtils.validateCategory which internally uses GeneralUtils.generateUUID
+        return categories.map(cat => ValidationUtils.validateCategory(cat));
     }
 
     // --- INPUT VALIDATION ---
     function validateSettingsInputs() {
         const errors = [];
-        
-        if (!validators.isPositiveNumber(elements.maxCategoriesPerRowInput.value)) {
+        // Use ValidationUtils for all validation checks
+        if (!ValidationUtils.isPositiveNumber(elements.maxCategoriesPerRowInput.value)) {
             errors.push('Max Categories Per Row must be a positive number');
         }
         
-        if (!validators.isPositiveNumber(elements.maxSiteCardsPerRowInput.value)) {
+        if (!ValidationUtils.isPositiveNumber(elements.maxSiteCardsPerRowInput.value)) {
             errors.push('Max Site Cards Per Row must be a positive number');
         }
         
-        if (!validators.isValidPixelValue(elements.cardMinWidthInput.value)) {
+        if (!ValidationUtils.isValidPixelValue(elements.cardMinWidthInput.value)) {
             errors.push('Card Min Width must be a valid pixel value (e.g., 70px)');
         }
         
-        if (!validators.isValidPixelValue(elements.faviconWrapperSizeInput.value)) {
+        if (!ValidationUtils.isValidPixelValue(elements.faviconWrapperSizeInput.value)) {
             errors.push('Favicon Wrapper Size must be a valid pixel value (e.g., 38px)');
         }
         
-        if (!validators.isValidPixelValue(elements.categoryTitleFontSizeInput.value)) {
+        if (!ValidationUtils.isValidPixelValue(elements.categoryTitleFontSizeInput.value)) {
             errors.push('Category Title Font Size must be a valid pixel value (e.g., 16px)');
         }
         
-        if (!validators.isValidPixelValue(elements.siteNameFontSizeInput.value)) {
+        if (!ValidationUtils.isValidPixelValue(elements.siteNameFontSizeInput.value)) {
             errors.push('Site Name Font Size must be a valid pixel value (e.g., 10px)');
         }
         
-        if (!validators.isValidColor(elements.gradientStartColorInput.value)) {
+        if (!ValidationUtils.isValidHexColor(elements.gradientStartColorInput.value)) {
             errors.push('Gradient Start Color must be a valid hex color');
         }
         
-        if (!validators.isValidColor(elements.gradientEndColorInput.value)) {
+        if (!ValidationUtils.isValidHexColor(elements.gradientEndColorInput.value)) {
             errors.push('Gradient End Color must be a valid hex color');
         }
         
@@ -297,12 +273,11 @@ document.addEventListener('DOMContentLoaded', async () => {
                 try {
                     appData.activeMode = event.target.value;
                     toggleModeSections(appData.activeMode);
-                    
+                    setUnsavedChanges(true); 
+
                     if (appData.activeMode === 'bookmarks' && appData.bookmarks.folderId) {
-                        await renderBookmarkCategoryOrderList();
+                        await renderBookmarkCategoryOrderList(); 
                     }
-                    
-                    showStatus("Mode switched. Remember to save settings.", STATUS_TYPES.INFO);
                 } catch (error) {
                     handleError(error, 'mode switching');
                 }
@@ -310,28 +285,38 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
 
         // Manual mode handlers
-        elements.addManualCategoryBtn?.addEventListener('click', handleAddManualCategory);
+        elements.addManualCategoryBtn?.addEventListener('click', () => {
+            handleAddManualCategory(); 
+        });
 
         // Bookmark mode handlers
-        elements.bookmarkFolderSelector?.addEventListener('change', handleBookmarkFolderSelectionChange);
-        elements.refreshBookmarkCategoriesBtn?.addEventListener('click', handleRefreshBookmarkCategories);
+        elements.bookmarkFolderSelector?.addEventListener('change', () => {
+            handleBookmarkFolderSelectionChange(); 
+        });
 
-        // Settings handlers with debouncing
-        const inputElements = [
+        elements.refreshBookmarkCategoriesBtn?.addEventListener('click', handleRefreshBookmarkCategories); 
+
+        // Settings handlers with debouncing for validation, and mark unsaved changes
+        const appearanceInputElements = [
             elements.maxCategoriesPerRowInput,
             elements.maxSiteCardsPerRowInput,
             elements.cardMinWidthInput,
             elements.faviconWrapperSizeInput,
             elements.categoryTitleFontSizeInput,
-            elements.siteNameFontSizeInput
+            elements.siteNameFontSizeInput,
+            elements.gradientStartColorInput,
+            elements.gradientEndColorInput
         ];
 
-        inputElements.forEach(input => {
+        appearanceInputElements.forEach(input => {
             if (input) {
-                input.addEventListener('input', debounceValidation);
+                input.addEventListener('input', () => {
+                    debounceValidation(); 
+                    setUnsavedChanges(true); 
+                });
             }
         });
-
+        
         // Data management handlers
         elements.saveAllSettingsBtn?.addEventListener('click', handleSaveAllSettings);
         elements.exportSettingsBtn?.addEventListener('click', handleExportSettings);
@@ -357,28 +342,19 @@ document.addEventListener('DOMContentLoaded', async () => {
         validationTimeout = setTimeout(() => {
             const errors = validateSettingsInputs();
             if (errors.length > 0) {
-                showStatus(`Validation: ${errors[0]}`, STATUS_TYPES.ERROR, 5000);
+                DOMUtils.showStatus(elements.statusMessageUI, `Validation: ${errors[0]}`, STATUS_TYPES.ERROR, 5000);
             }
         }, 500);
     }
 
-    // Debounce timer for manual updates
-    let manualUpdateDebounceTimer = null;
+    // Debounce timer for manual updates - Using DOMUtils.debounce
+    // This will now only update the local appData and mark changes as unsaved.
+    const debouncedUpdateManualData = DOMUtils.debounce(() => {
+        updateManualDataFromDOM(); // Updates local appData.manual based on DOM
+        setUnsavedChanges(true);
+        // Removed: DOMUtils.showStatus(elements.statusMessageUI, 'Changes saved automatically', STATUS_TYPES.SUCCESS, 1000);
+    }, 500);
 
-    function debounceManualUpdate(callback, delay = 500) {
-        return function(...args) {
-            clearTimeout(manualUpdateDebounceTimer);
-            manualUpdateDebounceTimer = setTimeout(() => {
-                callback.apply(this, args);
-            }, delay);
-        };
-    }
-
-    // Debounced version of updateManualDataFromDOM
-    const debouncedUpdateManualData = debounceManualUpdate(() => {
-        updateManualDataFromDOM();
-        showStatus('Changes saved automatically', STATUS_TYPES.SUCCESS, 1000);
-    });
 
     // --- MANUAL MODE FUNCTIONS ---
     function renderManualCategoriesList() {
@@ -433,14 +409,14 @@ document.addEventListener('DOMContentLoaded', async () => {
             const faviconUrl = getFaviconPreviewUrl(site);
             return `
                 <li data-site-index="${siteIndex}">
-                    <img src="${faviconUrl}" class="site-favicon-preview" alt="Favicon" 
+                    <img src="${faviconUrl}" class="site-favicon-preview" alt="Favicon"
                          onerror="this.onerror=null; this.src='icons/default_favicon.png'; this.alt='Default Favicon';">
-                    <input type="text" class="manual-site-name-input form-control" 
-                           value="${escapeHTML(site.name)}" placeholder="Site Name">
-                    <input type="url" class="manual-site-url-input form-control" 
-                           value="${escapeHTML(site.url)}" placeholder="https://example.com">
-                    <input type="url" class="manual-site-custom-icon-url-input form-control" 
-                           value="${escapeHTML(site.customIconUrl || '')}" placeholder="Custom Icon URL (optional)">
+                    <input type="text" class="manual-site-name-input form-control"
+                           value="${DOMUtils.escapeHTML(site.name)}" placeholder="Site Name">
+                    <input type="url" class="manual-site-url-input form-control"
+                           value="${DOMUtils.escapeHTML(site.url)}" placeholder="https://example.com">
+                    <input type="url" class="manual-site-custom-icon-url-input form-control"
+                           value="${DOMUtils.escapeHTML(site.customIconUrl || '')}" placeholder="Custom Icon URL (optional)">
                     <div class="manual-site-actions">
                         <button class="button danger-button small-button remove-manual-site-btn">Remove Site</button>
                     </div>
@@ -451,8 +427,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         catItem.innerHTML = `
             <div class="manual-category-header">
                 <span class="drag-handle">☰</span>
-                <input type="text" class="manual-category-name-input form-control" 
-                       value="${escapeHTML(category.name)}" placeholder="Category Name">
+                <input type="text" class="manual-category-name-input form-control"
+                       value="${DOMUtils.escapeHTML(category.name)}" placeholder="Category Name">
                 <div class="manual-category-actions">
                     <button class="button danger-button small-button remove-manual-category-btn">Remove Category</button>
                 </div>
@@ -467,18 +443,23 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     function getFaviconPreviewUrl(site) {
-        if (site.customIconUrl) return site.customIconUrl;
-        
-        if (site.url && validators.isValidUrl(site.url)) {
+        // Use URLUtils.getFaviconUrl, though it's more comprehensive than needed for just a preview.
+        // For simplicity, we can keep a lightweight version or adapt.
+        // Let's use a simplified version of what URLUtils.getFaviconUrl would do for preview:
+        if (site.customIconUrl && URLUtils.isValidUrl(site.customIconUrl)) {
+             return site.customIconUrl;
+        }
+        if (site.url && URLUtils.isValidUrl(site.url)) {
             try {
-                const urlObj = new URL(site.url);
-                return `https://www.google.com/s2/favicons?domain=${urlObj.hostname}&sz=32`;
+                const hostname = URLUtils.getEffectiveHostname(site.url);
+                if (hostname && hostname !== 'example.com') {
+                    return `${NOVATAB_CONSTANTS.FAVICON_SERVICES.GOOGLE}?domain=${encodeURIComponent(hostname)}&sz=32`;
+                }
             } catch {
-                // Fall through to default
+                // Fall through
             }
         }
-        
-        return 'icons/default_favicon.png';
+        return NOVATAB_CONSTANTS.FAVICON_SERVICES.FALLBACK;
     }
 
     function addEventListenersToManualItems() {
@@ -497,13 +478,13 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     function handleAddManualCategory() {
         try {
-            updateManualDataFromDOM();
-            const newCatId = generateUUID();
+            updateManualDataFromDOM(); 
+            const newCatId = GeneralUtils.generateUUID();
             const newCategory = { id: newCatId, name: 'New Category', sites: [] };
             appData.manual.categories.push(newCategory);
-            appData.manual.categoryOrder.push(newCatId);
-            renderManualCategoriesList();
-            showStatus("Category added", STATUS_TYPES.SUCCESS, 1000);
+            appData.manual.categoryOrder.push(newCatId); 
+            renderManualCategoriesList(); 
+            setUnsavedChanges(true);
         } catch (error) {
             handleError(error, 'adding category');
         }
@@ -518,12 +499,12 @@ document.addEventListener('DOMContentLoaded', async () => {
                 return;
             }
             
-            updateManualDataFromDOM();
+            updateManualDataFromDOM(); 
             const catId = catElement.dataset.id;
             appData.manual.categories = appData.manual.categories.filter(c => c.id !== catId);
             appData.manual.categoryOrder = appData.manual.categoryOrder.filter(id => id !== catId);
-            renderManualCategoriesList();
-            showStatus("Category removed", STATUS_TYPES.SUCCESS, 1000);
+            renderManualCategoriesList(); 
+            setUnsavedChanges(true);
         } catch (error) {
             handleError(error, 'removing category');
         }
@@ -531,15 +512,15 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     function handleAddManualSite(event) {
         try {
-            updateManualDataFromDOM();
+            updateManualDataFromDOM(); 
             const catId = event.target.closest('.manual-category-item').dataset.id;
             const category = appData.manual.categories.find(c => c.id === catId);
             
             if (category) {
                 if (!category.sites) category.sites = [];
                 category.sites.push({ name: 'New Site', url: 'https://', customIconUrl: '' });
-                renderManualCategoriesList();
-                showStatus("Site added", STATUS_TYPES.SUCCESS, 1000);
+                renderManualCategoriesList(); 
+                setUnsavedChanges(true);
             }
         } catch (error) {
             handleError(error, 'adding site');
@@ -548,7 +529,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     function handleRemoveManualSite(event) {
         try {
-            updateManualDataFromDOM();
+            updateManualDataFromDOM(); 
             const siteLi = event.target.closest('li');
             const catId = event.target.closest('.manual-category-item').dataset.id;
             const category = appData.manual.categories.find(c => c.id === catId);
@@ -557,8 +538,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const siteIndex = parseInt(siteLi.dataset.siteIndex);
                 if (!isNaN(siteIndex) && siteIndex >= 0 && siteIndex < category.sites.length) {
                     category.sites.splice(siteIndex, 1);
-                    renderManualCategoriesList();
-                    showStatus("Site removed", STATUS_TYPES.SUCCESS, 1000);
+                    renderManualCategoriesList(); 
+                    setUnsavedChanges(true);
                 }
             }
         } catch (error) {
@@ -595,41 +576,34 @@ document.addEventListener('DOMContentLoaded', async () => {
                     siteUrl = siteUrl.replace(/\s+/g, ' ').trim();
                     
                     // Handle various URL formats
-                    if (!siteUrl.match(/^https?:\/\//i)) {
-                        // Check if it looks like a protocol-less URL
-                        if (siteUrl.match(/^\/\//)) {
-                            siteUrl = 'https:' + siteUrl;
-                        } else if (siteUrl.match(/^[a-zA-Z]+:/) && !siteUrl.match(/^https?:/i)) {
-                            // Has a protocol but not http/https - keep as is but warn
-                            console.warn(`NovaTab: Non-HTTP protocol detected: ${siteUrl}`);
-                        } else {
-                            // No protocol, add https://
-                            siteUrl = 'https://' + siteUrl;
-                        }
-                    }
+                    // Use URLUtils.normalizeUrl for robust URL handling
+                    siteUrl = URLUtils.normalizeUrl(siteUrl);
                 }
 
                 // Keep sites even if name is empty (to prevent data loss)
                 // User can see and fix empty names
-                if (siteUrl) {
-                    sites.push({ 
-                        name: siteName || 'Unnamed Site', 
-                        url: siteUrl, 
-                        customIconUrl 
-                    });
+                if (siteUrl) { // URLUtils.normalizeUrl might return empty string for invalid inputs
+                    sites.push(ValidationUtils.validateSite({ // Use ValidationUtils.validateSite
+                        name: siteName || 'Unnamed Site',
+                        url: siteUrl,
+                        customIconUrl
+                    }));
                 }
             });
 
             // Keep categories even if empty (to prevent accidental deletion)
-            newCategories.push({ 
-                id, 
-                name: name || "Unnamed Category", 
-                sites 
-            });
+            // Use ValidationUtils.validateCategory to ensure structure and ID
+            newCategories.push(ValidationUtils.validateCategory({
+                id,
+                name: name || "Unnamed Category",
+                sites
+            }));
             newCategoryOrder.push(id);
         });
 
-        appData.manual.categories = newCategories;
+        // Filter out any potentially invalid categories if validateCategory decided so (e.g. no ID)
+        // Though current validateCategory always returns a valid structure with an ID.
+        appData.manual.categories = newCategories.filter(cat => cat && cat.id);
         appData.manual.categoryOrder = newCategoryOrder;
     }
 
@@ -639,7 +613,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             newOrder.push(item.dataset.id);
         });
         appData.manual.categoryOrder = newOrder;
-        updateManualDataFromDOM();
+        updateManualDataFromDOM(); 
+        setUnsavedChanges(true);
     }
 
     // --- BOOKMARK MODE FUNCTIONS ---
@@ -659,7 +634,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             const hasPermission = await checkBookmarkPermission();
             if (!hasPermission) {
                 elements.bookmarkFolderSelector.innerHTML = '<option value="">Bookmark permission required</option>';
-                showStatus('Please grant bookmark permission to use this feature', STATUS_TYPES.ERROR);
+                DOMUtils.showStatus(elements.statusMessageUI, 'Please grant bookmark permission to use this feature', STATUS_TYPES.ERROR);
                 return;
             }
 
@@ -681,29 +656,35 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     function populateFolderOptionsRecursive(bookmarkNode, depth, selectElement) {
         if (bookmarkNode.children) {
-            if (bookmarkNode.title || depth === 0) {
-                if (depth > 0 || ["0", "1", "2"].includes(bookmarkNode.id)) {
+            if (bookmarkNode.title || depth === 0) { // Root node might not have a title
+                // Include root folders (like 'Bookmarks Bar', 'Other Bookmarks') which often have IDs like "1", "2"
+                // And the absolute root "0" if desired (though often not directly selectable for this purpose)
+                if (depth > 0 || ["0", "1", "2"].includes(bookmarkNode.id)) { // Adjust this condition as needed
                     const option = document.createElement('option');
                     option.value = bookmarkNode.id;
-                    option.textContent = `${'— '.repeat(depth)}${bookmarkNode.title || (bookmarkNode.id === "0" ? 'All Bookmarks (Root)' : 'Unnamed Folder')}`;
+                    option.textContent = `${'— '.repeat(depth)}${DOMUtils.escapeHTML(bookmarkNode.title || (bookmarkNode.id === "0" ? 'All Bookmarks (Root)' : 'Unnamed Folder'))}`;
                     selectElement.appendChild(option);
                 }
             }
             bookmarkNode.children.forEach(child => {
-                populateFolderOptionsRecursive(child, depth + 1, selectElement);
+                // Only recurse if child is a folder (doesn't have a URL)
+                if (!child.url) {
+                    populateFolderOptionsRecursive(child, depth + 1, selectElement);
+                }
             });
         }
     }
 
+
     async function handleBookmarkFolderSelectionChange() {
         try {
             appData.bookmarks.folderId = elements.bookmarkFolderSelector.value;
-            
+            setUnsavedChanges(true);
+
             if (appData.bookmarks.folderId) {
                 const derivedCategories = await deriveCategoriesFromSelectedBookmarkFolder(true);
-                appData.bookmarks.categoryOrder = derivedCategories.map(cat => cat.id);
-                await renderBookmarkCategoryOrderList();
-                showStatus("Bookmark folder selected", STATUS_TYPES.SUCCESS);
+                appData.bookmarks.categoryOrder = derivedCategories.map(cat => cat.id); 
+                await renderBookmarkCategoryOrderList(); 
             } else {
                 appData.bookmarks.categoryOrder = [];
                 elements.bookmarkCategoryOrderListUI.innerHTML = '';
@@ -774,46 +755,60 @@ document.addEventListener('DOMContentLoaded', async () => {
                     li.dataset.id = catId;
                     li.draggable = true;
                     li.className = 'sortable-item';
-                    li.innerHTML = `<span class="drag-handle">☰</span> ${escapeHTML(categoryMap.get(catId))}`;
+                    li.innerHTML = `<span class="drag-handle">☰</span> ${DOMUtils.escapeHTML(categoryMap.get(catId))}`;
                     elements.bookmarkCategoryOrderListUI.appendChild(li);
                 }
             });
 
-            makeSortable(elements.bookmarkCategoryOrderListUI, appData.bookmarks.categoryOrder);
+            makeSortable(elements.bookmarkCategoryOrderListUI, appData.bookmarks.categoryOrder, updateBookmarkCategoryOrderFromDOM);
         } catch (error) {
             handleError(error, 'rendering bookmark category order');
         }
     }
+    
+    function updateBookmarkCategoryOrderFromDOM() {
+        const newOrder = [];
+        elements.bookmarkCategoryOrderListUI.querySelectorAll('.sortable-item').forEach(item => {
+            newOrder.push(item.dataset.id);
+        });
+        appData.bookmarks.categoryOrder = newOrder;
+        setUnsavedChanges(true);
+    }
+
 
     async function handleRefreshBookmarkCategories() {
         if (appData.activeMode !== 'bookmarks' || !appData.bookmarks.folderId) {
-            showStatus("Please select a bookmark folder first.", STATUS_TYPES.INFO);
+            DOMUtils.showStatus(elements.statusMessageUI, "Please select a bookmark folder first.", STATUS_TYPES.INFO, 3000);
             return;
         }
 
         try {
-            setLoadingState(true);
-            showStatus("Refreshing bookmark categories...", STATUS_TYPES.INFO);
+            setLoadingState(true); 
+            DOMUtils.showStatus(elements.statusMessageUI, "Refreshing bookmark categories...", STATUS_TYPES.INFO, 0); 
             
-            const derivedCategories = await deriveCategoriesFromSelectedBookmarkFolder(true);
+            // This will fetch bookmarks, update appData.bookmarks.categoryOrder, and re-render the list.
+            // The derived categories will be based on the current state of appData.bookmarks.iconOverrides.
+            const derivedCategories = await deriveCategoriesFromSelectedBookmarkFolder(true); 
             const newCategoryMap = new Map(derivedCategories.map(cat => [cat.id, cat.name]));
             
-            let updatedOrder = appData.bookmarks.categoryOrder.filter(id => newCategoryMap.has(id));
+            let currentOrder = appData.bookmarks.categoryOrder || [];
+            let updatedOrder = currentOrder.filter(id => newCategoryMap.has(id));
+            
             derivedCategories.forEach(cat => {
                 if (!updatedOrder.includes(cat.id)) {
                     updatedOrder.push(cat.id);
                 }
             });
             
-            appData.bookmarks.categoryOrder = updatedOrder;
-            await renderBookmarkCategoryOrderList();
+            appData.bookmarks.categoryOrder = updatedOrder; // Update local appData
+            await renderBookmarkCategoryOrderList(); // Update UI
+
+            // Explicitly call save to persist all changes including the new bookmark order and potentially other pending changes.
             await handleSaveAllSettings();
-            
-            showStatus("Bookmark categories refreshed successfully!", STATUS_TYPES.SUCCESS);
+            // Success message will be shown by handleSaveAllSettings.
         } catch (error) {
             handleError(error, 'refreshing bookmark categories');
-        } finally {
-            setLoadingState(false);
+            setLoadingState(false); // Ensure loading indicator is turned off on error.
         }
     }
 
@@ -825,14 +820,15 @@ document.addEventListener('DOMContentLoaded', async () => {
             // Validate inputs
             const validationErrors = validateSettingsInputs();
             if (validationErrors.length > 0) {
-                showStatus(`Validation failed: ${validationErrors[0]}`, STATUS_TYPES.ERROR);
+                DOMUtils.showStatus(elements.statusMessageUI, `Validation failed: ${validationErrors[0]}`, STATUS_TYPES.ERROR);
+                setLoadingState(false); // Release loading state on validation error
                 return;
             }
 
-            // Update settings from UI
+            // Update settings from UI using NOVATAB_CONSTANTS for defaults
             appSettings = {
-                maxCategoriesPerRow: elements.maxCategoriesPerRowInput.value.trim() || DEFAULT_SETTINGS.maxCategoriesPerRow,
-                maxSiteCardsPerRow: elements.maxSiteCardsPerRowInput.value.trim() || DEFAULT_SETTINGS.maxSiteCardsPerRow,
+                maxCategoriesPerRow: elements.maxCategoriesPerRowInput.value.trim() || NOVATAB_CONSTANTS.DEFAULT_SETTINGS.maxCategoriesPerRow,
+                maxSiteCardsPerRow: elements.maxSiteCardsPerRowInput.value.trim() || NOVATAB_CONSTANTS.DEFAULT_SETTINGS.maxSiteCardsPerRow,
                 cardMinWidth: elements.cardMinWidthInput.value.trim(),
                 faviconWrapperSize: elements.faviconWrapperSizeInput.value.trim(),
                 categoryTitleFontSize: elements.categoryTitleFontSizeInput.value.trim(),
@@ -848,37 +844,26 @@ document.addEventListener('DOMContentLoaded', async () => {
             appData.activeMode = document.querySelector('input[name="dataSourceMode"]:checked').value;
 
             if (appData.activeMode === 'manual') {
-                updateManualDataFromDOM();
-            } else {
+                updateManualDataFromDOM(); // Ensure local appData.manual is up-to-date with DOM
+            } else { // 'bookmarks' mode
                 appData.bookmarks.folderId = elements.bookmarkFolderSelector.value;
-                const currentBookmarkOrderInDOM = [];
-                elements.bookmarkCategoryOrderListUI.querySelectorAll('.sortable-item').forEach(li => {
-                    currentBookmarkOrderInDOM.push(li.dataset.id);
-                });
-                appData.bookmarks.categoryOrder = currentBookmarkOrderInDOM;
+                // Bookmark category order is already updated in appData.bookmarks.categoryOrder by makeSortable/updateBookmarkCategoryOrderFromDOM
             }
 
-            // Generate active display data
-            let activeDisplayData = { categories: [], categoryOrder: [] };
-            if (appData.activeMode === 'manual') {
-                activeDisplayData.categories = appData.manual.categories;
-                activeDisplayData.categoryOrder = appData.manual.categoryOrder;
-            } else if (appData.activeMode === 'bookmarks' && appData.bookmarks.folderId) {
-                activeDisplayData.categories = await deriveCategoriesFromSelectedBookmarkFolder(true);
-                const derivedCategoryMap = new Map(activeDisplayData.categories.map(c => [c.id, c]));
-                appData.bookmarks.categoryOrder = appData.bookmarks.categoryOrder.filter(id => derivedCategoryMap.has(id));
-                activeDisplayData.categories.forEach(cat => {
-                    if (!appData.bookmarks.categoryOrder.includes(cat.id)) {
-                        appData.bookmarks.categoryOrder.push(cat.id);
-                    }
-                });
-                activeDisplayData.categoryOrder = appData.bookmarks.categoryOrder;
-            }
+            // Generate active display data using the centralized utility
+            // Ensure appData is up-to-date before this call
+            const activeDisplayData = await DataSyncUtils.generateActiveDisplayData(appData, chrome.bookmarks);
 
             // Save to storage
-            await chrome.storage.local.set({ appSettings, appData, activeDisplayData });
-            showStatus('Settings saved successfully!', STATUS_TYPES.SUCCESS);
+            await StorageUtils.set({ 
+                [NOVATAB_CONSTANTS.STORAGE_KEYS.APP_SETTINGS]: appSettings, 
+                [NOVATAB_CONSTANTS.STORAGE_KEYS.APP_DATA]: appData, 
+                [NOVATAB_CONSTANTS.STORAGE_KEYS.ACTIVE_DISPLAY_DATA]: activeDisplayData 
+            });
             
+            setUnsavedChanges(false); 
+            DOMUtils.showStatus(elements.statusMessageUI, 'Settings saved successfully!', STATUS_TYPES.SUCCESS, 3000); 
+
         } catch (error) {
             handleError(error, 'saving settings');
         } finally {
@@ -901,8 +886,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             a.click();
             document.body.removeChild(a);
             URL.revokeObjectURL(url);
-            
-            showStatus('Settings exported successfully!', STATUS_TYPES.SUCCESS);
+
+            DOMUtils.showStatus(elements.statusMessageUI, 'Settings exported successfully!', STATUS_TYPES.SUCCESS);
         } catch (error) {
             handleError(error, 'exporting settings');
         }
@@ -921,24 +906,24 @@ document.addEventListener('DOMContentLoaded', async () => {
                     throw new Error('Invalid import file format');
                 }
 
-                // Validate and merge settings
-                const newAppSettings = { ...DEFAULT_SETTINGS };
-                Object.keys(DEFAULT_SETTINGS).forEach(key => {
-                    if (imported.appSettings[key] !== undefined) {
+                // Validate and merge settings using NOVATAB_CONSTANTS
+                const newAppSettings = { ...NOVATAB_CONSTANTS.DEFAULT_SETTINGS };
+                Object.keys(NOVATAB_CONSTANTS.DEFAULT_SETTINGS).forEach(key => {
+                    if (imported.appSettings && imported.appSettings[key] !== undefined) {
                         newAppSettings[key] = imported.appSettings[key];
                     }
                 });
-                
+
                 appSettings = newAppSettings;
-                appData = JSON.parse(JSON.stringify(DEFAULT_APP_DATA));
-                
-                appData.activeMode = imported.appData.activeMode || DEFAULT_APP_DATA.activeMode;
-                
+                appData = GeneralUtils.deepClone(NOVATAB_CONSTANTS.DEFAULT_APP_DATA);
+
+                appData.activeMode = imported.appData.activeMode || NOVATAB_CONSTANTS.DEFAULT_APP_DATA.activeMode;
+
                 if (imported.appData.manual) {
                     appData.manual.categories = validateCategories(imported.appData.manual.categories || []);
                     appData.manual.categoryOrder = imported.appData.manual.categoryOrder || [];
                 }
-                
+
                 if (imported.appData.bookmarks) {
                     appData.bookmarks = {
                         folderId: imported.appData.bookmarks.folderId || null,
@@ -951,16 +936,19 @@ document.addEventListener('DOMContentLoaded', async () => {
                     appData.manual.categoryOrder = appData.manual.categories.map(c => c.id);
                 }
 
-                await handleSaveAllSettings();
+                await handleSaveAllSettings(); // This will also save activeDisplayData and reset unsavedChanges flag
                 updateUIBasedOnState();
-                
+
                 if (appData.activeMode === 'bookmarks') {
-                    await loadBookmarkFoldersIntoSelector();
-                    await renderBookmarkCategoryOrderList();
+                    await loadBookmarkFoldersIntoSelector(); // Ensure folders are loaded
+                    if (appData.bookmarks.folderId) { // If a folder is selected, render its order list
+                       elements.bookmarkFolderSelector.value = appData.bookmarks.folderId; // Set selector
+                       await renderBookmarkCategoryOrderList();
+                    }
                 }
                 
-                showStatus('Settings imported successfully!', STATUS_TYPES.SUCCESS);
-                
+                DOMUtils.showStatus(elements.statusMessageUI, 'Settings imported successfully!', STATUS_TYPES.SUCCESS, 3000);
+
             } catch (error) {
                 handleError(error, 'importing settings');
             } finally {
@@ -978,32 +966,33 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         try {
             setLoadingState(true);
-            
-            appSettings = { ...DEFAULT_SETTINGS };
-            appData = JSON.parse(JSON.stringify(DEFAULT_APP_DATA));
 
-            const defaultActiveDisplayData = { categories: [], categoryOrder: [] };
-            if (DEFAULT_APP_DATA.activeMode === 'manual') {
-                defaultActiveDisplayData.categories = DEFAULT_APP_DATA.manual.categories;
-                defaultActiveDisplayData.categoryOrder = DEFAULT_APP_DATA.manual.categoryOrder;
-            }
+            // Use NOVATAB_CONSTANTS for resetting
+            appSettings = { ...NOVATAB_CONSTANTS.DEFAULT_SETTINGS };
+            appData = GeneralUtils.deepClone(NOVATAB_CONSTANTS.DEFAULT_APP_DATA);
 
-            await chrome.storage.local.set({
-                appSettings: { ...DEFAULT_SETTINGS },
-                appData: JSON.parse(JSON.stringify(DEFAULT_APP_DATA)),
-                activeDisplayData: defaultActiveDisplayData
+            // Generate activeDisplayData based on the reset appData
+            const activeDisplayData = await DataSyncUtils.generateActiveDisplayData(appData, chrome.bookmarks);
+
+            await StorageUtils.set({
+                [NOVATAB_CONSTANTS.STORAGE_KEYS.APP_SETTINGS]: appSettings,
+                [NOVATAB_CONSTANTS.STORAGE_KEYS.APP_DATA]: appData,
+                [NOVATAB_CONSTANTS.STORAGE_KEYS.ACTIVE_DISPLAY_DATA]: activeDisplayData
             });
 
-            await loadDataFromStorage();
+            // Reload and update UI
+            await loadDataFromStorage(); // This reloads appSettings and appData from storage
             updateUIBasedOnState();
-            
+
             if (appData.activeMode === 'bookmarks') {
-                await loadBookmarkFoldersIntoSelector();
-                await renderBookmarkCategoryOrderList();
+                await loadBookmarkFoldersIntoSelector(); // Reload folders
+                elements.bookmarkFolderSelector.value = appData.bookmarks.folderId; // Reset selector
+                await renderBookmarkCategoryOrderList(); // Re-render list
             }
             
-            showStatus('All settings have been reset to default.', STATUS_TYPES.SUCCESS);
-            
+            setUnsavedChanges(false); // Reset unsaved changes flag
+            DOMUtils.showStatus(elements.statusMessageUI, 'All settings have been reset to default.', STATUS_TYPES.SUCCESS, 3000);
+
         } catch (error) {
             handleError(error, 'resetting settings');
         } finally {
@@ -1011,17 +1000,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
-    // --- UTILITY FUNCTIONS ---
-    function generateUUID() {
-        return crypto.randomUUID();
-    }
-
-    function escapeHTML(str) {
-        if (typeof str !== 'string') str = String(str);
-        return str.replace(/[&<>"']/g, match => ({
-            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
-        }[match]));
-    }
+    // generateUUID and escapeHTML are removed, using GeneralUtils.generateUUID and DOMUtils.escapeHTML
 
     // --- DRAG AND DROP FUNCTIONALITY ---
     let draggedItem = null;
@@ -1043,10 +1022,14 @@ document.addEventListener('DOMContentLoaded', async () => {
                     newOrder.push(li.dataset.id);
                 });
                 
-                orderArray.length = 0;
+                orderArray.length = 0; 
                 orderArray.push(...newOrder);
                 
-                if (onSortCallback) onSortCallback();
+                if (onSortCallback) {
+                    onSortCallback(); 
+                } else {
+                    setUnsavedChanges(true);
+                }
             };
         });
 
@@ -1084,11 +1067,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Set up store rating link
         document.getElementById('rate-extension').href = `https://chrome.google.com/webstore/detail/${chrome.runtime.id}/reviews`;
 
-        // Set up privacy policy link (replace with your actual privacy policy URL)
-        document.getElementById('privacy-policy').href = 'https://github.com/yourusername/novatab-extension/blob/main/PRIVACY.md';
+        // Set up privacy policy link
+        document.getElementById('privacy-policy').href = 'https://github.com/YOUR_USERNAME/YOUR_REPOSITORY/blob/main/PRIVACY.md';
 
-        // Set up issue reporting link (replace with your actual repository URL)
-        document.getElementById('report-issue').href = 'https://github.com/yourusername/novatab-extension/issues/new';
+        // Set up issue reporting link
+        document.getElementById('report-issue').href = 'https://github.com/YOUR_USERNAME/YOUR_REPOSITORY/issues/new';
     }
 
     // Call initializeFooter after DOM is loaded
