@@ -1,27 +1,13 @@
 // background.js - Service Worker for NovaTab extension
 
-const EXTENSION_VERSION = "1.1.0";
-const DEFAULT_SETTINGS = {
-    maxCategoriesPerRow: '2',
-    maxSiteCardsPerRow: '5',
-    cardMinWidth: '70px',
-    categoryTitleFontSize: '16px',
-    siteNameFontSize: '10px',
-    faviconWrapperSize: '38px',
-    gradientStartColor: '#F5F7FA',
-    gradientEndColor: '#E0E5EC'
-};
-
-const DEFAULT_APP_DATA = {
-    activeMode: 'manual',
-    manual: { categories: [], categoryOrder: [] },
-    bookmarks: { folderId: null, categoryOrder: [], iconOverrides: {} }
-};
-
 // Installation and update handling
 chrome.runtime.onInstalled.addListener(async (details) => {
     console.log('NovaTab: Extension installed/updated', details);
-    
+
+    // Ensure utils.js is loaded before proceeding
+    // In a service worker, you might need to use importScripts() if utils.js is not automatically loaded.
+    // However, based on the problem description, we assume utils.js objects are globally available.
+
     try {
         if (details.reason === 'install') {
             await handleFirstInstall();
@@ -36,18 +22,18 @@ chrome.runtime.onInstalled.addListener(async (details) => {
 // Handle first-time installation
 async function handleFirstInstall() {
     console.log('NovaTab: First time installation');
-    
+
     try {
         await chrome.storage.local.set({
-            appSettings: { ...DEFAULT_SETTINGS },
-            appData: { ...DEFAULT_APP_DATA },
-            activeDisplayData: { categories: [], categoryOrder: [] },
-            extensionVersion: EXTENSION_VERSION,
+            appSettings: { ...NOVATAB_CONSTANTS.DEFAULT_SETTINGS },
+            appData: { ...NOVATAB_CONSTANTS.DEFAULT_APP_DATA },
+            activeDisplayData: { categories: [], categoryOrder: [] }, // Assuming this structure is okay or defined elsewhere
+            extensionVersion: NOVATAB_CONSTANTS.VERSION,
             installDate: Date.now()
         });
-        
+
         console.log('NovaTab: Default settings initialized');
-        
+
     } catch (error) {
         console.error('NovaTab: Error during first install setup:', error);
     }
@@ -55,22 +41,23 @@ async function handleFirstInstall() {
 
 // Handle extension updates
 async function handleUpdate(previousVersion) {
-    console.log(`NovaTab: Updating from version ${previousVersion} to ${EXTENSION_VERSION}`);
-    
+    console.log(`NovaTab: Updating from version ${previousVersion} to ${NOVATAB_CONSTANTS.VERSION}`);
+
     try {
         const result = await chrome.storage.local.get(['appSettings', 'appData', 'extensionVersion']);
-        
-        if (previousVersion && isVersionLower(previousVersion, '1.1.0')) {
+
+        // Use GeneralUtils.compareVersions for version comparison
+        if (previousVersion && GeneralUtils.compareVersions(previousVersion, '1.1.0') < 0) {
             await migrateToV1_1_0(result);
         }
-        
+
         await chrome.storage.local.set({
-            extensionVersion: EXTENSION_VERSION,
+            extensionVersion: NOVATAB_CONSTANTS.VERSION,
             lastUpdateDate: Date.now()
         });
-        
+
         console.log('NovaTab: Update completed successfully');
-        
+
     } catch (error) {
         console.error('NovaTab: Error during update:', error);
     }
@@ -83,11 +70,11 @@ async function migrateToV1_1_0(existingData) {
     try {
         let appSettings = existingData.appSettings || {};
         let appData = existingData.appData || {};
-        
-        const updatedSettings = { ...DEFAULT_SETTINGS, ...appSettings };
-        
+
+        const updatedSettings = { ...NOVATAB_CONSTANTS.DEFAULT_SETTINGS, ...appSettings };
+
         const updatedAppData = {
-            activeMode: appData.activeMode || DEFAULT_APP_DATA.activeMode,
+            activeMode: appData.activeMode || NOVATAB_CONSTANTS.DEFAULT_APP_DATA.activeMode,
             manual: {
                 categories: appData.manual?.categories || [],
                 categoryOrder: appData.manual?.categoryOrder || []
@@ -98,10 +85,10 @@ async function migrateToV1_1_0(existingData) {
                 iconOverrides: appData.bookmarks?.iconOverrides || {}
             }
         };
-        
+
         if (updatedAppData.manual.categories) {
             updatedAppData.manual.categories = updatedAppData.manual.categories.map(cat => ({
-                id: cat.id || generateUUID(),
+                id: cat.id || GeneralUtils.generateUUID(),
                 name: cat.name || 'Unnamed Category',
                 sites: (cat.sites || []).map(site => ({
                     name: site.name || '',
@@ -110,8 +97,8 @@ async function migrateToV1_1_0(existingData) {
                 }))
             }));
         }
-        
-        if ((!updatedAppData.manual.categoryOrder || updatedAppData.manual.categoryOrder.length === 0) 
+
+        if ((!updatedAppData.manual.categoryOrder || updatedAppData.manual.categoryOrder.length === 0)
             && updatedAppData.manual.categories.length > 0) {
             updatedAppData.manual.categoryOrder = updatedAppData.manual.categories.map(c => c.id);
         }
@@ -129,31 +116,6 @@ async function migrateToV1_1_0(existingData) {
     }
 }
 
-// Utility function to compare version strings
-function isVersionLower(version1, version2) {
-    const v1Parts = version1.split('.').map(Number);
-    const v2Parts = version2.split('.').map(Number);
-    
-    for (let i = 0; i < Math.max(v1Parts.length, v2Parts.length); i++) {
-        const v1Part = v1Parts[i] || 0;
-        const v2Part = v2Parts[i] || 0;
-        
-        if (v1Part < v2Part) return true;
-        if (v1Part > v2Part) return false;
-    }
-    
-    return false;
-}
-
-// UUID generation utility
-function generateUUID() {
-    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-        const r = Math.random() * 16 | 0;
-        const v = c == 'x' ? r : (r & 0x3 | 0x8);
-        return v.toString(16);
-    });
-}
-
 // Handle bookmark changes
 chrome.bookmarks.onCreated.addListener(handleBookmarkChange);
 chrome.bookmarks.onRemoved.addListener(handleBookmarkChange);
@@ -162,13 +124,28 @@ chrome.bookmarks.onMoved.addListener(handleBookmarkChange);
 
 async function handleBookmarkChange(id, changeInfo) {
     try {
-        const result = await chrome.storage.local.get(['appData']);
-        
-        if (result.appData?.activeMode === 'bookmarks' && result.appData?.bookmarks?.folderId) {
-            console.log('NovaTab: Bookmarks changed, display may need refresh');
+        // Retrieve the current appData
+        const storageResult = await StorageUtils.get(NOVATAB_CONSTANTS.STORAGE_KEYS.APP_DATA);
+        const currentAppData = storageResult.appData;
+
+        if (currentAppData?.activeMode === 'bookmarks' && currentAppData?.bookmarks?.folderId) {
+            console.log('NovaTab: Bookmarks changed, generating new activeDisplayData...');
+            
+            // Generate the new activeDisplayData using the centralized utility
+            const newActiveDisplayData = await DataSyncUtils.generateActiveDisplayData(currentAppData, chrome.bookmarks);
+            
+            // Save the new activeDisplayData to storage
+            await StorageUtils.set({ [NOVATAB_CONSTANTS.STORAGE_KEYS.ACTIVE_DISPLAY_DATA]: newActiveDisplayData });
+            
+            console.log('NovaTab: Updated activeDisplayData saved due to bookmark change.');
+            
+            // Optionally, notify other parts of the extension (e.g., open tabs) if immediate refresh is needed.
+            // This might involve sending a message via chrome.runtime.sendMessage.
         }
     } catch (error) {
         console.error('NovaTab: Error handling bookmark change:', error);
+        // Consider logging the error using ErrorUtils if more detailed reporting is needed
+        ErrorUtils.logError(error, 'handleBookmarkChange');
     }
 }
 
@@ -180,26 +157,40 @@ chrome.action.onClicked.addListener(() => {
 // Message handling
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     console.log('NovaTab: Received message:', request);
-    
+
     if (request.action === 'getVersion') {
-        sendResponse({ version: EXTENSION_VERSION });
+        sendResponse({ version: NOVATAB_CONSTANTS.VERSION });
         return true;
     }
-    
+
     if (request.action === 'refreshBookmarks') {
-        handleBookmarkRefresh(sendResponse);
+        // This message might now be redundant if background.js auto-updates on bookmark changes.
+        // However, it can be kept for explicit refresh requests from options page or other UI.
+        handleManualBookmarkRefresh(sendResponse);
         return true;
     }
 });
 
-async function handleBookmarkRefresh(sendResponse) {
+async function handleManualBookmarkRefresh(sendResponse) {
     try {
-        sendResponse({ success: true });
+        const storageResult = await StorageUtils.get(NOVATAB_CONSTANTS.STORAGE_KEYS.APP_DATA);
+        const currentAppData = storageResult.appData;
+
+        if (currentAppData?.activeMode === 'bookmarks' && currentAppData?.bookmarks?.folderId) {
+            const newActiveDisplayData = await DataSyncUtils.generateActiveDisplayData(currentAppData, chrome.bookmarks);
+            await StorageUtils.set({ [NOVATAB_CONSTANTS.STORAGE_KEYS.ACTIVE_DISPLAY_DATA]: newActiveDisplayData });
+            console.log('NovaTab: activeDisplayData refreshed manually via message.');
+            sendResponse({ success: true, message: "Bookmarks refreshed and display data updated." });
+        } else {
+            sendResponse({ success: false, message: "Not in bookmarks mode or no folder selected." });
+        }
     } catch (error) {
-        console.error('NovaTab: Error refreshing bookmarks:', error);
+        console.error('NovaTab: Error handling manual bookmark refresh:', error);
+        ErrorUtils.logError(error, 'handleManualBookmarkRefresh');
         sendResponse({ success: false, error: error.message });
     }
 }
+
 
 chrome.runtime.onSuspend.addListener(() => {
     console.log('NovaTab: Extension suspending');
