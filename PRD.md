@@ -97,6 +97,14 @@
 - [x] Privacy policy and compliance
 - [x] Store listing assets and documentation
 - [x] Chrome Web Store submission
+- [x] **v1.1.1 - Code Refactoring and Technical Debt Reduction**
+  - Consolidated utilities into centralized utils.js module
+  - Implemented NOVATAB_CONSTANTS for application-wide constants (DEFAULT_SETTINGS, DEFAULT_APP_DATA, VERSION)
+  - Centralized URL utilities (isValidUrl, normalizeUrl, getEffectiveHostname, getFaviconUrl)
+  - Created DataSyncUtils.generateActiveDisplayData for consistent data flow between background, options, and new tab pages
+  - Improved state management with automatic activeDisplayData regeneration on bookmark changes
+  - Refactored options page to explicit save model with "Save All Settings" button, unsaved changes indicator, and beforeunload prompt
+  - Enhanced code maintainability and reduced duplication across background.js, new_tab.js, and options.js
 - [ ] Post-launch support and updates
 
 ---

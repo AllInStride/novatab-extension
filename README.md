@@ -10,6 +10,26 @@
 
 3. **Configure settings** by right-clicking the extension icon and selecting "Options"
 
+## ✨ What's New in v1.1.1
+
+### 🔧 Code Refactoring and Improvements
+- **Centralized utilities** - Consolidated shared code into `utils.js` for better maintainability
+- **Improved data flow** - New `DataSyncUtils.generateActiveDisplayData` provides consistent data generation
+- **Better code organization** - Centralized constants, UUID generation, favicon utilities, and validation functions
+- **Enhanced state management** - Cleaner separation between background script, options page, and new tab page
+
+### 💾 Options Page Save Model Changes
+- **Explicit save button** - New "Save All Settings" button replaces auto-save behavior
+- **Unsaved changes indicator** - Visual feedback shows when changes haven't been saved
+- **beforeunload prompt** - Warns users if they try to close the page with unsaved changes
+- **Improved reliability** - Clearer save state prevents accidental data loss
+
+### 🏗️ Technical Improvements
+- **DEFAULT_SETTINGS constant** - Centralized default settings in utils.js
+- **UUID utilities** - Consolidated UUID generation functions
+- **Favicon utilities** - Centralized favicon URL generation and validation
+- **Validation utilities** - Shared validation functions across all scripts
+
 ## ✨ What's New in v1.1.0
 
 ### 🐛 Major Bug Fixes
@@ -104,13 +124,17 @@ Create PNG files in the `icons/` directory:
 1. Go to extension options (right-click extension icon → Options)
 2. Add categories and sites manually
 3. Drag to reorder categories
-4. Right-click sites on new tab page to set custom icons
+4. **Click "Save All Settings" button** to save your changes
+5. Right-click sites on new tab page to set custom icons
+
+**Note:** Changes in the options page are not auto-saved. You must click the "Save All Settings" button to persist your changes. An unsaved changes indicator will appear if you have pending modifications, and you'll be prompted if you try to close the page without saving.
 
 ### Bookmark Mode
 1. Create bookmark folders in Chrome
 2. Add sites to those folders
 3. In extension options, select your main bookmark folder
 4. Subfolders become categories automatically
+5. **Click "Save All Settings" button** to save your configuration
 
 ## 🎨 Customization Options
 
@@ -144,7 +168,9 @@ Create PNG files in the `icons/` directory:
 - Clear browser cache and reload
 
 **Settings not saving:**
-- Check Chrome storage permissions
+- **Ensure you clicked "Save All Settings" button** - Changes are not auto-saved in v1.1.1+
+- Check for the unsaved changes indicator (asterisk) before closing options page
+- Verify Chrome storage permissions
 - Try exporting/importing settings
 - Reset to defaults if corrupted
 
@@ -232,6 +258,6 @@ This project is open source. Feel free to modify and distribute according to you
 
 ---
 
-**Version:** 1.1.0 Enhanced  
-**Chrome Version Required:** 88+  
-**Last Updated:** 2025
+**Version:** 1.1.1 Enhanced
+**Chrome Version Required:** 88+
+**Last Updated:** May 2025
