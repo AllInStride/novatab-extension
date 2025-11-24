@@ -159,29 +159,35 @@ document.addEventListener('DOMContentLoaded', async () => {
             </div>`;
     }
 
+    /**
+     * Orders categories based on categoryOrder preference.
+     * Optimized with Set for O(n) complexity instead of O(n²).
+     *
+     * @returns {Array} Ordered array of categories with sites
+     */
     function getOrderedCategories() {
         if (!appDataForDisplay.categories) return [];
-        
+
         const categoryMap = new Map(appDataForDisplay.categories.map(cat => [cat.id, cat]));
         const orderedCategories = [];
+        const usedIds = new Set(); // O(1) lookup instead of O(n) with includes()
 
+        // Add categories in specified order
         if (appDataForDisplay.categoryOrder?.length) {
-            // Add categories in specified order
             appDataForDisplay.categoryOrder.forEach(catId => {
                 if (categoryMap.has(catId)) {
                     orderedCategories.push(categoryMap.get(catId));
+                    usedIds.add(catId); // Track used IDs
                 }
             });
-            
-            // Add any remaining categories not in the order
-            appDataForDisplay.categories.forEach(cat => {
-                if (!appDataForDisplay.categoryOrder.includes(cat.id)) {
-                    orderedCategories.push(cat);
-                }
-            });
-        } else {
-            orderedCategories.push(...appDataForDisplay.categories);
         }
+
+        // Add remaining categories not in order (O(n) instead of O(n²))
+        appDataForDisplay.categories.forEach(cat => {
+            if (!usedIds.has(cat.id)) { // O(1) Set lookup
+                orderedCategories.push(cat);
+            }
+        });
 
         return orderedCategories.filter(cat => cat?.sites?.length > 0);
     }
@@ -237,9 +243,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             isBookmarkSite: String(category.id && typeof category.id === 'string' && /^\d+$/.test(category.id))
         });
 
-        // Add context menu listener
-        siteCard.addEventListener('contextmenu', handleSiteContextMenu);
-
         // Create favicon
         const faviconWrapper = document.createElement('div');
         faviconWrapper.className = 'site-favicon-wrapper';
@@ -280,20 +283,20 @@ document.addEventListener('DOMContentLoaded', async () => {
         return siteCard;
     }
 
-    function handleSiteContextMenu(e) {
-        e.preventDefault();
-        
-        currentSiteForModal = { 
-            categoryId: e.currentTarget.dataset.categoryId, 
-            siteUrl: e.currentTarget.dataset.siteUrl, 
-            siteName: e.currentTarget.dataset.siteName,
-            isBookmarkSiteContext: e.currentTarget.dataset.isBookmarkSite === 'true'
+    function handleSiteContextMenu(e, siteCard) {
+        // e.preventDefault() already called in delegation handler
+
+        currentSiteForModal = {
+            categoryId: siteCard.dataset.categoryId,
+            siteUrl: siteCard.dataset.siteUrl,
+            siteName: siteCard.dataset.siteName,
+            isBookmarkSiteContext: siteCard.dataset.isBookmarkSite === 'true'
         };
-        
+
         if (setCustomIconCtxItem) {
             setCustomIconCtxItem.style.display = 'block';
         }
-        
+
         if (customContextMenu) {
             customContextMenu.style.top = `${e.pageY}px`;
             customContextMenu.style.left = `${e.pageX}px`;
@@ -341,6 +344,17 @@ document.addEventListener('DOMContentLoaded', async () => {
                 await handleSaveCustomIcon();
             };
         }
+
+        // Context menu event delegation (replaces individual listeners)
+        if (categoriesContainer) {
+            categoriesContainer.addEventListener('contextmenu', (e) => {
+                const siteCard = e.target.closest('.site-card');
+                if (siteCard) {
+                    e.preventDefault();
+                    handleSiteContextMenu(e, siteCard);
+                }
+            });
+        }
     }
 
     async function handleSetCustomIcon() {
@@ -378,9 +392,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (!currentSiteForModal) return;
 
         const newIconUrl = customIconUrlInput.value.trim();
-        
+        const saveBtn = document.getElementById('modal-save-icon-btn');
+        const modalContent = document.querySelector('.modal-content');
+
         // Validate URL if provided
-        if (newIconUrl && !URLUtils.isValidUrl(newIconUrl)) { // Use URLUtils.isValidUrl
+        if (newIconUrl && !URLUtils.isValidImageUrl(newIconUrl)) { // Use URLUtils.isValidImageUrl
             alert("Please enter a valid URL (starting with http:// or https://).");
             return;
         }
@@ -390,6 +406,12 @@ document.addEventListener('DOMContentLoaded', async () => {
             return;
         }
 
+        // Add loading state
+        const originalBtnText = saveBtn.textContent;
+        saveBtn.disabled = true;
+        saveBtn.classList.add('button-loading');
+        modalContent.classList.add('loading');
+
         try {
             await saveCustomIconToStorage(newIconUrl);
             customIconModal.style.display = "none";
@@ -398,6 +420,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         } catch (error) {
             console.error("NovaTab: Error saving custom icon:", error);
             alert("Error saving custom icon. Please try again.");
+
+            // Remove loading state on error
+            saveBtn.disabled = false;
+            saveBtn.classList.remove('button-loading');
+            saveBtn.textContent = originalBtnText;
+            modalContent.classList.remove('loading');
         }
     }
 
@@ -445,7 +473,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         if (siteUpdated) {
-            const newActiveDisplayData = await generateActiveDisplayData(fullAppData);
+            const newActiveDisplayData = await DataSyncUtils.generateActiveDisplayData(fullAppData, chrome.bookmarks);
             await chrome.storage.local.set({
                 appData: fullAppData,
                 activeDisplayData: newActiveDisplayData,

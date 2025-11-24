@@ -71,10 +71,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     function setLoadingState(loading) {
         isLoading = loading;
         const saveBtn = elements.saveAllSettingsBtn;
-        
+
         if (saveBtn) {
             saveBtn.disabled = loading;
-            saveBtn.textContent = loading ? 'Saving...' : 'Save All Settings';
+            if (loading) {
+                saveBtn.classList.add('button-loading');
+            } else {
+                saveBtn.classList.remove('button-loading');
+                saveBtn.textContent = 'Save All Settings';
+            }
         }
     }
     
@@ -115,6 +120,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     async function initialize() {
         try {
             setLoadingState(true);
+
+            // Set dynamic version from manifest
+            const manifest = chrome.runtime.getManifest();
+            const versionElement = document.getElementById('extension-version');
+            if (versionElement) {
+                versionElement.textContent = manifest.version;
+            }
+
             await loadDataFromStorage();
             setupEventListeners();
             updateUIBasedOnState();
@@ -131,6 +144,12 @@ document.addEventListener('DOMContentLoaded', async () => {
                 }
             }
             setUnsavedChanges(false); // Initialize as no unsaved changes
+
+            // Check storage usage and show warning if needed
+            if (typeof StorageManager !== 'undefined') {
+                await StorageManager.showUsageWarningIfNeeded(elements.statusMessageUI);
+            }
+
             DOMUtils.showStatus(elements.statusMessageUI, 'Settings loaded successfully!', STATUS_TYPES.SUCCESS, 3000);
         } catch (error) {
             handleError(error, 'initialization');
@@ -446,7 +465,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Use URLUtils.getFaviconUrl, though it's more comprehensive than needed for just a preview.
         // For simplicity, we can keep a lightweight version or adapt.
         // Let's use a simplified version of what URLUtils.getFaviconUrl would do for preview:
-        if (site.customIconUrl && URLUtils.isValidUrl(site.customIconUrl)) {
+        if (site.customIconUrl && URLUtils.isValidImageUrl(site.customIconUrl)) {
              return site.customIconUrl;
         }
         if (site.url && URLUtils.isValidUrl(site.url)) {
@@ -463,17 +482,35 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     function addEventListenersToManualItems() {
-        document.querySelectorAll('.remove-manual-category-btn').forEach(btn => {
-            btn.onclick = handleRemoveManualCategory;
-        });
-        
-        document.querySelectorAll('.add-manual-site-btn').forEach(btn => {
-            btn.onclick = handleAddManualSite;
-        });
-        
-        document.querySelectorAll('.remove-manual-site-btn').forEach(btn => {
-            btn.onclick = handleRemoveManualSite;
-        });
+        // Event delegation - single listener on container handles all buttons
+        if (!elements.manualCategoriesListUI) return;
+
+        // Remove old listener if exists (prevent duplicates on re-render)
+        if (elements.manualCategoriesListUI._delegateListener) {
+            elements.manualCategoriesListUI.removeEventListener(
+                'click',
+                elements.manualCategoriesListUI._delegateListener
+            );
+        }
+
+        // Create new delegate listener
+        const delegateListener = (e) => {
+            const target = e.target;
+
+            if (target.classList.contains('remove-manual-category-btn')) {
+                handleRemoveManualCategory(e);
+            } else if (target.classList.contains('add-manual-site-btn')) {
+                handleAddManualSite(e);
+            } else if (target.classList.contains('remove-manual-site-btn')) {
+                handleRemoveManualSite(e);
+            }
+        };
+
+        // Store reference for later removal
+        elements.manualCategoriesListUI._delegateListener = delegateListener;
+
+        // Add single delegated listener
+        elements.manualCategoriesListUI.addEventListener('click', delegateListener);
     }
 
     function handleAddManualCategory() {
@@ -782,24 +819,33 @@ document.addEventListener('DOMContentLoaded', async () => {
             return;
         }
 
+        const refreshBtn = elements.refreshBookmarkCategoriesBtn;
+        const originalBtnText = refreshBtn ? refreshBtn.textContent : '';
+
         try {
-            setLoadingState(true); 
-            DOMUtils.showStatus(elements.statusMessageUI, "Refreshing bookmark categories...", STATUS_TYPES.INFO, 0); 
-            
+            // Add loading state to refresh button
+            if (refreshBtn) {
+                refreshBtn.disabled = true;
+                refreshBtn.classList.add('button-loading');
+                refreshBtn.textContent = 'Refreshing...';
+            }
+
+            DOMUtils.showStatus(elements.statusMessageUI, "Refreshing bookmark categories...", STATUS_TYPES.INFO, 0);
+
             // This will fetch bookmarks, update appData.bookmarks.categoryOrder, and re-render the list.
             // The derived categories will be based on the current state of appData.bookmarks.iconOverrides.
-            const derivedCategories = await deriveCategoriesFromSelectedBookmarkFolder(true); 
+            const derivedCategories = await deriveCategoriesFromSelectedBookmarkFolder(true);
             const newCategoryMap = new Map(derivedCategories.map(cat => [cat.id, cat.name]));
-            
+
             let currentOrder = appData.bookmarks.categoryOrder || [];
             let updatedOrder = currentOrder.filter(id => newCategoryMap.has(id));
-            
+
             derivedCategories.forEach(cat => {
                 if (!updatedOrder.includes(cat.id)) {
                     updatedOrder.push(cat.id);
                 }
             });
-            
+
             appData.bookmarks.categoryOrder = updatedOrder; // Update local appData
             await renderBookmarkCategoryOrderList(); // Update UI
 
@@ -808,7 +854,13 @@ document.addEventListener('DOMContentLoaded', async () => {
             // Success message will be shown by handleSaveAllSettings.
         } catch (error) {
             handleError(error, 'refreshing bookmark categories');
-            setLoadingState(false); // Ensure loading indicator is turned off on error.
+        } finally {
+            // Remove loading state from refresh button
+            if (refreshBtn) {
+                refreshBtn.disabled = false;
+                refreshBtn.classList.remove('button-loading');
+                refreshBtn.textContent = originalBtnText;
+            }
         }
     }
 
@@ -1061,17 +1113,12 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Initialize footer functionality
     function initializeFooter() {
-        // Set version number
-        document.getElementById('extension-version').textContent = chrome.runtime.getManifest().version;
-
-        // Set up store rating link
-        document.getElementById('rate-extension').href = `https://chrome.google.com/webstore/detail/${chrome.runtime.id}/reviews`;
-
-        // Set up privacy policy link
-        document.getElementById('privacy-policy').href = 'https://github.com/YOUR_USERNAME/YOUR_REPOSITORY/blob/main/PRIVACY.md';
-
-        // Set up issue reporting link
-        document.getElementById('report-issue').href = 'https://github.com/YOUR_USERNAME/YOUR_REPOSITORY/issues/new';
+        // Set version number dynamically from manifest
+        const manifest = chrome.runtime.getManifest();
+        const versionElement = document.getElementById('extension-version');
+        if (versionElement) {
+            versionElement.textContent = manifest.version;
+        }
     }
 
     // Call initializeFooter after DOM is loaded

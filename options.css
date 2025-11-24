@@ -598,8 +598,34 @@ button:focus,
     }
 }
 
-/* Dark mode support (if enabled) */
-@media (prefers-color-scheme: dark) {
+/* Loading states */
+.button-loading {
+    position: relative;
+    color: transparent !important;
+    pointer-events: none;
+}
+
+.button-loading::after {
+    content: '';
+    position: absolute;
+    width: 16px;
+    height: 16px;
+    top: 50%;
+    left: 50%;
+    margin-left: -8px;
+    margin-top: -8px;
+    border: 2px solid #ffffff;
+    border-radius: 50%;
+    border-top-color: transparent;
+    animation: button-spin 0.6s linear infinite;
+}
+
+@keyframes button-spin {
+    to { transform: rotate(360deg); }
+}
+
+/* Dark mode support - DISABLED to force light mode always */
+/* @media (prefers-color-scheme: dark) {
     :root {
         --gradient-start: #1a1a1a;
         --gradient-end: #2d2d2d;
@@ -607,38 +633,38 @@ button:focus,
         --border-color: #404040;
         --bg-color: rgba(50, 50, 50, 0.9);
     }
-    
+
     body {
         background: var(--gradient-start) linear-gradient(135deg, var(--gradient-start) 0%, var(--gradient-end) 100%);
     }
-    
+
     .container {
         background-color: var(--bg-color);
         box-shadow: 0 6px 20px rgba(0,0,0,0.3);
     }
-    
+
     .settings-section {
         background-color: rgba(60, 60, 60, 0.9);
         border-color: var(--border-color);
     }
-    
+
     .form-group input,
     .form-group select {
         background-color: rgba(70, 70, 70, 0.9);
         border-color: var(--border-color);
         color: var(--text-color);
     }
-    
+
     .manual-category-item {
         background-color: rgba(70, 70, 70, 0.9);
         border-color: var(--border-color);
     }
-    
+
     .sortable-list li {
         background-color: rgba(70, 70, 70, 0.9);
         border-color: var(--border-color);
     }
-}
+} */
 
 /* Responsive design improvements */
 @media (max-width: 768px) {
