@@ -52,11 +52,11 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         } catch (error) {
             console.error("NovaTab: Error loading data:", error);
-            showErrorMessage("Failed to load settings. Using defaults.");
+            showErrorMessage(NOVATAB_MESSAGES.ERRORS.STORAGE_FAILED);
             settings = { ...NOVATAB_CONSTANTS.DEFAULT_SETTINGS };
-            appDataForDisplay = { 
-                categories: NOVATAB_CONSTANTS.DEFAULT_APP_DATA.manual.categories, 
-                categoryOrder: NOVATAB_CONSTANTS.DEFAULT_APP_DATA.manual.categoryOrder 
+            appDataForDisplay = {
+                categories: NOVATAB_CONSTANTS.DEFAULT_APP_DATA.manual.categories,
+                categoryOrder: NOVATAB_CONSTANTS.DEFAULT_APP_DATA.manual.categoryOrder
             };
         }
 
@@ -497,7 +497,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             customIconUrlInput.focus();
         } catch (error) {
             console.error("NovaTab: Error loading custom icon data:", error);
-            showErrorMessage("Failed to load custom icon data");
+            showErrorMessage(NOVATAB_MESSAGES.ERRORS.OPERATION_FAILED);
         }
 
         customContextMenu.style.display = 'none';
@@ -512,7 +512,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         // Validate URL if provided
         if (newIconUrl && !URLUtils.isValidImageUrl(newIconUrl)) { // Use URLUtils.isValidImageUrl
-            alert("Please enter a valid URL (starting with http:// or https://).");
+            alert(NOVATAB_MESSAGES.ERRORS.INVALID_IMAGE_URL);
             return;
         }
 
@@ -534,7 +534,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             await debouncedLoadAndRender();
         } catch (error) {
             console.error("NovaTab: Error saving custom icon:", error);
-            alert("Error saving custom icon. Please try again.");
+            alert(NOVATAB_MESSAGES.ERRORS.OPERATION_FAILED);
 
             // Remove loading state on error
             saveBtn.disabled = false;
@@ -610,7 +610,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             console.log("NovaTab: Initialization completed successfully.");
         } catch (error) {
             console.error("NovaTab: Failed to initialize:", error);
-            showErrorMessage("Failed to initialize NovaTab");
+            showErrorMessage(NOVATAB_MESSAGES.ERRORS.OPERATION_FAILED);
         }
     })();
 });

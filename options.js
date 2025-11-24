@@ -150,7 +150,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 await StorageManager.showUsageWarningIfNeeded(elements.statusMessageUI);
             }
 
-            DOMUtils.showStatus(elements.statusMessageUI, 'Settings loaded successfully!', STATUS_TYPES.SUCCESS, 3000);
+            DOMUtils.showStatus(elements.statusMessageUI, NOVATAB_MESSAGES.SUCCESS.SETTINGS_SAVED, STATUS_TYPES.SUCCESS, 3000);
         } catch (error) {
             handleError(error, 'initialization');
         } finally {
@@ -532,7 +532,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             const catElement = event.target.closest('.manual-category-item');
             const catName = catElement.querySelector('.manual-category-name-input').value;
             
-            if (!confirm(`Remove category "${catName}"? This cannot be undone.`)) {
+            if (!confirm(`Remove category "${catName}"? ${NOVATAB_MESSAGES.WARNINGS.DELETE_CATEGORY_CONFIRM}`)) {
                 return;
             }
             
@@ -671,7 +671,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             const hasPermission = await checkBookmarkPermission();
             if (!hasPermission) {
                 elements.bookmarkFolderSelector.innerHTML = '<option value="">Bookmark permission required</option>';
-                DOMUtils.showStatus(elements.statusMessageUI, 'Please grant bookmark permission to use this feature', STATUS_TYPES.ERROR);
+                DOMUtils.showStatus(elements.statusMessageUI, NOVATAB_MESSAGES.ERRORS.BOOKMARK_PERMISSION_DENIED, STATUS_TYPES.ERROR);
                 return;
             }
 
@@ -815,7 +815,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     async function handleRefreshBookmarkCategories() {
         if (appData.activeMode !== 'bookmarks' || !appData.bookmarks.folderId) {
-            DOMUtils.showStatus(elements.statusMessageUI, "Please select a bookmark folder first.", STATUS_TYPES.INFO, 3000);
+            DOMUtils.showStatus(elements.statusMessageUI, NOVATAB_MESSAGES.ERRORS.BOOKMARK_FOLDER_NOT_FOUND, STATUS_TYPES.INFO, 3000);
             return;
         }
 
@@ -830,7 +830,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 refreshBtn.textContent = 'Refreshing...';
             }
 
-            DOMUtils.showStatus(elements.statusMessageUI, "Refreshing bookmark categories...", STATUS_TYPES.INFO, 0);
+            DOMUtils.showStatus(elements.statusMessageUI, NOVATAB_MESSAGES.INFO.REFRESHING, STATUS_TYPES.INFO, 0);
 
             // This will fetch bookmarks, update appData.bookmarks.categoryOrder, and re-render the list.
             // The derived categories will be based on the current state of appData.bookmarks.iconOverrides.
@@ -914,7 +914,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             });
             
             setUnsavedChanges(false); 
-            DOMUtils.showStatus(elements.statusMessageUI, 'Settings saved successfully!', STATUS_TYPES.SUCCESS, 3000); 
+            DOMUtils.showStatus(elements.statusMessageUI, NOVATAB_MESSAGES.SUCCESS.SETTINGS_SAVED, STATUS_TYPES.SUCCESS, 3000); 
 
         } catch (error) {
             handleError(error, 'saving settings');
@@ -939,7 +939,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             document.body.removeChild(a);
             URL.revokeObjectURL(url);
 
-            DOMUtils.showStatus(elements.statusMessageUI, 'Settings exported successfully!', STATUS_TYPES.SUCCESS);
+            DOMUtils.showStatus(elements.statusMessageUI, NOVATAB_MESSAGES.SUCCESS.DATA_EXPORTED, STATUS_TYPES.SUCCESS);
         } catch (error) {
             handleError(error, 'exporting settings');
         }
@@ -999,7 +999,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     }
                 }
                 
-                DOMUtils.showStatus(elements.statusMessageUI, 'Settings imported successfully!', STATUS_TYPES.SUCCESS, 3000);
+                DOMUtils.showStatus(elements.statusMessageUI, NOVATAB_MESSAGES.SUCCESS.DATA_IMPORTED, STATUS_TYPES.SUCCESS, 3000);
 
             } catch (error) {
                 handleError(error, 'importing settings');
@@ -1012,7 +1012,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     async function handleResetAllSettings() {
-        if (!confirm("Are you sure you want to reset all NovaTab settings to their defaults? This action cannot be undone.")) {
+        if (!confirm(NOVATAB_MESSAGES.WARNINGS.RESET_SETTINGS_CONFIRM + " This action cannot be undone.")) {
             return;
         }
 
@@ -1043,7 +1043,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
             
             setUnsavedChanges(false); // Reset unsaved changes flag
-            DOMUtils.showStatus(elements.statusMessageUI, 'All settings have been reset to default.', STATUS_TYPES.SUCCESS, 3000);
+            DOMUtils.showStatus(elements.statusMessageUI, NOVATAB_MESSAGES.SUCCESS.SETTINGS_SAVED, STATUS_TYPES.SUCCESS, 3000);
 
         } catch (error) {
             handleError(error, 'resetting settings');
