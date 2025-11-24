@@ -306,6 +306,33 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Enhanced modal and context menu event listeners
     function setupEventListeners() {
+        // Store previously focused element for modal restoration
+        let previouslyFocusedElement = null;
+
+        // Track focus when modal opens
+        const observer = new MutationObserver((mutations) => {
+            mutations.forEach((mutation) => {
+                if (mutation.attributeName === 'style' && customIconModal) {
+                    if (customIconModal.style.display !== 'none' && customIconModal.style.display !== '') {
+                        previouslyFocusedElement = document.activeElement;
+                    }
+                }
+            });
+        });
+        if (customIconModal) {
+            observer.observe(customIconModal, { attributes: true });
+        }
+
+        // Helper to close modal and restore focus
+        const closeModalAndRestoreFocus = () => {
+            if (customIconModal) {
+                customIconModal.style.display = "none";
+                if (previouslyFocusedElement?.focus) {
+                    previouslyFocusedElement.focus();
+                }
+            }
+        };
+
         // Global click to hide context menu
         document.addEventListener('click', () => {
             if (customContextMenu && customContextMenu.style.display === 'block') {
@@ -315,18 +342,18 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         // Modal close handlers
         if (modalCloseBtn && customIconModal) {
-            modalCloseBtn.onclick = () => customIconModal.style.display = "none";
+            modalCloseBtn.onclick = closeModalAndRestoreFocus;
         }
 
         if (modalCancelIconBtn && customIconModal) {
-            modalCancelIconBtn.onclick = () => customIconModal.style.display = "none";
+            modalCancelIconBtn.onclick = closeModalAndRestoreFocus;
         }
 
         // Click outside modal to close - Fixed to use addEventListener
         if (customIconModal) {
             window.addEventListener('click', (event) => {
                 if (event.target === customIconModal) {
-                    customIconModal.style.display = "none";
+                    closeModalAndRestoreFocus();
                 }
             });
         }
@@ -361,6 +388,8 @@ document.addEventListener('DOMContentLoaded', async () => {
      * Setup keyboard accessibility handlers
      */
     function setupKeyboardAccessibility() {
+        let previouslyFocusedElement = null;
+
         // ESC key to close modal and context menu
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') {
@@ -368,6 +397,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                 if (customIconModal && customIconModal.style.display !== 'none') {
                     customIconModal.style.display = 'none';
                     customIconUrlInput.value = '';
+                    // Restore focus to previously focused element
+                    if (previouslyFocusedElement?.focus) {
+                        previouslyFocusedElement.focus();
+                    }
                 }
 
                 // Close context menu
@@ -385,6 +418,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                     e.preventDefault();
                     customIconModal.style.display = 'none';
                     customIconUrlInput.value = '';
+                    // Restore focus to previously focused element
+                    if (previouslyFocusedElement?.focus) {
+                        previouslyFocusedElement.focus();
+                    }
                 }
             });
         }
@@ -404,7 +441,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         customIconModal.addEventListener('keydown', (e) => {
             if (e.key === 'Tab' && customIconModal.style.display !== 'none') {
                 const focusableElements = customIconModal.querySelectorAll(
-                    'button, input, [tabindex]:not([tabindex="-1"])'
+                    'button:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex="-1"])'
                 );
                 const firstElement = focusableElements[0];
                 const lastElement = focusableElements[focusableElements.length - 1];
@@ -419,11 +456,13 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         });
 
-        // Focus input when modal opens
+        // Focus input when modal opens and store previously focused element
         const observer = new MutationObserver((mutations) => {
             mutations.forEach((mutation) => {
                 if (mutation.attributeName === 'style') {
                     if (customIconModal.style.display !== 'none' && customIconModal.style.display !== '') {
+                        // Store the element that had focus before modal opened
+                        previouslyFocusedElement = document.activeElement;
                         customIconUrlInput.focus();
                     }
                 }
