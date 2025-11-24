@@ -357,6 +357,82 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
+    /**
+     * Setup keyboard accessibility handlers
+     */
+    function setupKeyboardAccessibility() {
+        // ESC key to close modal and context menu
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                // Close modal
+                if (customIconModal && customIconModal.style.display !== 'none') {
+                    customIconModal.style.display = 'none';
+                    customIconUrlInput.value = '';
+                }
+
+                // Close context menu
+                if (customContextMenu && customContextMenu.style.display !== 'none') {
+                    customContextMenu.style.display = 'none';
+                }
+            }
+        });
+
+        // Enter key on close button
+        const closeBtn = document.getElementById('modal-close-btn');
+        if (closeBtn) {
+            closeBtn.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    customIconModal.style.display = 'none';
+                    customIconUrlInput.value = '';
+                }
+            });
+        }
+
+        // Enter key on context menu item
+        const contextMenuItem = document.getElementById('set-custom-icon-ctx');
+        if (contextMenuItem) {
+            contextMenuItem.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    contextMenuItem.click();
+                }
+            });
+        }
+
+        // Tab trap in modal (keep focus within modal when open)
+        customIconModal.addEventListener('keydown', (e) => {
+            if (e.key === 'Tab' && customIconModal.style.display !== 'none') {
+                const focusableElements = customIconModal.querySelectorAll(
+                    'button, input, [tabindex]:not([tabindex="-1"])'
+                );
+                const firstElement = focusableElements[0];
+                const lastElement = focusableElements[focusableElements.length - 1];
+
+                if (e.shiftKey && document.activeElement === firstElement) {
+                    e.preventDefault();
+                    lastElement.focus();
+                } else if (!e.shiftKey && document.activeElement === lastElement) {
+                    e.preventDefault();
+                    firstElement.focus();
+                }
+            }
+        });
+
+        // Focus input when modal opens
+        const observer = new MutationObserver((mutations) => {
+            mutations.forEach((mutation) => {
+                if (mutation.attributeName === 'style') {
+                    if (customIconModal.style.display !== 'none' && customIconModal.style.display !== '') {
+                        customIconUrlInput.focus();
+                    }
+                }
+            });
+        });
+
+        observer.observe(customIconModal, { attributes: true });
+    }
+
     async function handleSetCustomIcon() {
         if (!currentSiteForModal) return;
 
@@ -490,6 +566,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     (async () => {
         try {
             setupEventListeners();
+            setupKeyboardAccessibility();
             await loadAndRender();
             console.log("NovaTab: Initialization completed successfully.");
         } catch (error) {
