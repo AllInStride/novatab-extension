@@ -3,7 +3,6 @@
   "name": "NovaTab - Next Gen Dashboard",
   "version": "1.1.1",
   "description": "Transform your new tab into a beautiful, customizable dashboard. Organize sites, use bookmarks, and boost productivity!",
-  "short_description": "A beautiful, customizable new tab. Organize sites, use bookmarks as categories, and enjoy a distraction-free dashboard.",
   "author": "AllInStride Media",
   
   "permissions": [
@@ -47,12 +46,16 @@
   },
   
   "content_security_policy": {
-    "extension_pages": "script-src 'self'; object-src 'self'; connect-src https://www.google.com/ https://fonts.googleapis.com/ https://fonts.gstatic.com/;"
+    "extension_pages": "script-src 'self'; object-src 'self'; connect-src https://www.google.com/;"
   },
   
   "web_accessible_resources": [
     {
-      "resources": ["icons/*.png"],
+      "resources": [
+        "icons/*.png",
+        "fonts/*.woff2",
+        "fonts/fonts.css"
+      ],
       "matches": ["<all_urls>"]
     }
   ],

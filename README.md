@@ -12,23 +12,50 @@
 
 ## ✨ What's New in v1.1.1
 
-### 🔧 Code Refactoring and Improvements
-- **Centralized utilities** - Consolidated shared code into `utils.js` for better maintainability
+### 🎨 User Experience Enhancements
+- **Loading states** - Visual spinners for all async operations (save, refresh, bookmark operations)
+- **Keyboard accessibility** - Full navigation with ESC, Enter, Tab keys
+  - Tab trapping in modals with automatic focus restoration
+  - Screen reader support with proper ARIA attributes
+  - Auto-focus on modal inputs for better UX
+- **Favicon lazy loading** - Progressive image loading with Intersection Observer
+  - ~70% reduction in initial HTTP requests for pages with many sites
+  - Smooth fade-in transitions
+  - Loads images 100px before they enter viewport
+
+### 🐛 Critical Bug Fixes
+- **Runtime error** - Fixed custom icon saving crash (generateActiveDisplayData call)
+- **CSP violations** - Switched to local Inter fonts for security compliance
+- **Race conditions** - Added 500ms debounce for bookmark change handling
+- **XSS protection** - Block dangerous protocols in custom icon URLs (javascript:, vbscript:, data:text/html)
+- **Memory leaks** - Implemented event delegation to prevent listener buildup
+- **Tab trap** - Fixed missing close button in modal keyboard navigation
+- **Observer cleanup** - Proper lifecycle management for Intersection Observer
+
+### ⚡ Performance Improvements
+- **O(n) category ordering** - Optimized from O(n²) using Set-based lookup (~100x faster with 100+ categories)
+- **Input debouncing** - 300ms delay on appearance settings to reduce function calls
+- **Deep clone optimization** - Using structuredClone() API for better performance
+- **Storage quota checking** - 90% capacity warnings to prevent data loss
+- **Icon cleanup** - Automatic removal of orphaned icon overrides
+
+### 🔧 Code Quality & Maintainability
+- **Centralized string constants** - All user-facing messages in `constants-messages.js` (56 messages)
+  - Prepared for future internationalization (i18n)
+  - Easy maintenance and consistency
+- **Error logging system** - Local error storage for debugging
+  - Stores last 50 errors with full context
+  - View, export, and clear error logs in options page
+  - Privacy-friendly (never sent automatically)
+- **Standardized error handling** - Consistent ErrorUtils.logError patterns across all files (17 error handlers)
 - **Improved data flow** - New `DataSyncUtils.generateActiveDisplayData` provides consistent data generation
 - **Better code organization** - Centralized constants, UUID generation, favicon utilities, and validation functions
-- **Enhanced state management** - Cleaner separation between background script, options page, and new tab page
 
 ### 💾 Options Page Save Model Changes
 - **Explicit save button** - New "Save All Settings" button replaces auto-save behavior
 - **Unsaved changes indicator** - Visual feedback shows when changes haven't been saved
 - **beforeunload prompt** - Warns users if they try to close the page with unsaved changes
 - **Improved reliability** - Clearer save state prevents accidental data loss
-
-### 🏗️ Technical Improvements
-- **DEFAULT_SETTINGS constant** - Centralized default settings in utils.js
-- **UUID utilities** - Consolidated UUID generation functions
-- **Favicon utilities** - Centralized favicon URL generation and validation
-- **Validation utilities** - Shared validation functions across all scripts
 
 ## ✨ What's New in v1.1.0
 
