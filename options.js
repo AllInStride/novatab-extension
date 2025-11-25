@@ -57,8 +57,24 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // VALIDATION UTILITIES are now sourced from ValidationUtils in utils.js
     // ERROR HANDLING
+    /**
+     * Handles errors by logging them and optionally displaying to the user.
+     *
+     * @param {Error} error - The error object
+     * @param {string} context - Description of where/what caused the error
+     * @param {boolean} showToUser - Whether to display error message to user
+     *
+     * @description
+     * Standardized error handler that:
+     * 1. Logs error to ErrorUtils with context for debugging
+     * 2. Optionally shows user-friendly error message via DOMUtils.showStatus
+     *
+     * @example
+     * handleError(error, 'saving settings', true);
+     * // Logs error and shows message to user
+     */
     function handleError(error, context = '', showToUser = true) {
-        console.error(`NovaTab Error (${context}):`, error);
+        ErrorUtils.logError(error, context || 'options.js');
         if (showToUser) {
             // Use DOMUtils.showStatus
             DOMUtils.showStatus(elements.statusMessageUI, `Error: ${error.message || 'Something went wrong'}`, STATUS_TYPES.ERROR);
@@ -663,7 +679,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             await chrome.bookmarks.getTree();
             return true;
         } catch (error) {
-            console.warn('NovaTab: Bookmark permission not granted:', error);
+            ErrorUtils.logError(error, 'checkBookmarkPermission', {
+                permissionDenied: true
+            });
             return false;
         }
     }
@@ -1139,7 +1157,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             const errors = await ErrorUtils.getErrorLogs();
             errorCountEl.textContent = errors.length;
         } catch (error) {
-            console.error('Failed to update error count:', error);
+            ErrorUtils.logError(error, 'updateErrorCount');
             errorCountEl.textContent = '?';
         }
     }
@@ -1167,7 +1185,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             errorDisplay.style.display = errorDisplay.style.display === 'none' ? 'block' : 'none';
 
         } catch (error) {
-            console.error('Failed to view error logs:', error);
+            ErrorUtils.logError(error, 'handleViewErrorLogs');
             alert('Failed to load error logs');
         }
     }
@@ -1201,7 +1219,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             DOMUtils.showStatus(statusMsg, 'Error logs exported successfully', 'success');
 
         } catch (error) {
-            console.error('Failed to export error logs:', error);
+            ErrorUtils.logError(error, 'handleExportErrorLogs', {
+                errorCount: errors?.length || 0
+            });
             alert('Failed to export error logs');
         }
     }
@@ -1227,7 +1247,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             DOMUtils.showStatus(statusMsg, 'Error logs cleared', 'success');
 
         } catch (error) {
-            console.error('Failed to clear error logs:', error);
+            ErrorUtils.logError(error, 'handleClearErrorLogs');
             alert('Failed to clear error logs');
         }
     }

@@ -1,5 +1,8 @@
 // background.js - Service Worker for NovaTab extension
 
+// Import utilities (Manifest V3 service workers require importScripts)
+importScripts('utils.js');
+
 // Installation and update handling
 chrome.runtime.onInstalled.addListener(async (details) => {
     console.log('NovaTab: Extension installed/updated', details);
@@ -15,7 +18,10 @@ chrome.runtime.onInstalled.addListener(async (details) => {
             await handleUpdate(details.previousVersion);
         }
     } catch (error) {
-        console.error('NovaTab: Error during installation/update:', error);
+        ErrorUtils.logError(error, 'chrome.runtime.onInstalled', {
+            reason: details.reason,
+            previousVersion: details.previousVersion
+        });
     }
 });
 
@@ -35,7 +41,10 @@ async function handleFirstInstall() {
         console.log('NovaTab: Default settings initialized');
 
     } catch (error) {
-        console.error('NovaTab: Error during first install setup:', error);
+        ErrorUtils.logError(error, 'handleFirstInstall', {
+            reason: 'install',
+            version: NOVATAB_CONSTANTS.VERSION
+        });
     }
 }
 
@@ -59,7 +68,10 @@ async function handleUpdate(previousVersion) {
         console.log('NovaTab: Update completed successfully');
 
     } catch (error) {
-        console.error('NovaTab: Error during update:', error);
+        ErrorUtils.logError(error, 'handleUpdate', {
+            previousVersion,
+            targetVersion: NOVATAB_CONSTANTS.VERSION
+        });
     }
 }
 
@@ -109,12 +121,18 @@ async function migrateToV1_1_0(existingData) {
         });
         
         console.log('NovaTab: Migration to 1.1.0 completed');
-        
+
     } catch (error) {
-        console.error('NovaTab: Error during migration:', error);
+        ErrorUtils.logError(error, 'migrateToV1_1_0', {
+            hasExistingData: !!existingData,
+            existingMode: existingData?.appData?.activeMode
+        });
         throw error;
     }
 }
+
+// Bookmark change debouncing
+let bookmarkChangeTimeout = null;
 
 // Handle bookmark changes
 chrome.bookmarks.onCreated.addListener(handleBookmarkChange);
@@ -122,31 +140,46 @@ chrome.bookmarks.onRemoved.addListener(handleBookmarkChange);
 chrome.bookmarks.onChanged.addListener(handleBookmarkChange);
 chrome.bookmarks.onMoved.addListener(handleBookmarkChange);
 
+/**
+ * Handles bookmark changes with debouncing to prevent race conditions.
+ * Waits 500ms after last change before regenerating activeDisplayData.
+ *
+ * @param {string} id - Bookmark ID that changed
+ * @param {Object} changeInfo - Change information
+ */
 async function handleBookmarkChange(id, changeInfo) {
-    try {
-        // Retrieve the current appData
-        const storageResult = await StorageUtils.get(NOVATAB_CONSTANTS.STORAGE_KEYS.APP_DATA);
-        const currentAppData = storageResult.appData;
-
-        if (currentAppData?.activeMode === 'bookmarks' && currentAppData?.bookmarks?.folderId) {
-            console.log('NovaTab: Bookmarks changed, generating new activeDisplayData...');
-            
-            // Generate the new activeDisplayData using the centralized utility
-            const newActiveDisplayData = await DataSyncUtils.generateActiveDisplayData(currentAppData, chrome.bookmarks);
-            
-            // Save the new activeDisplayData to storage
-            await StorageUtils.set({ [NOVATAB_CONSTANTS.STORAGE_KEYS.ACTIVE_DISPLAY_DATA]: newActiveDisplayData });
-            
-            console.log('NovaTab: Updated activeDisplayData saved due to bookmark change.');
-            
-            // Optionally, notify other parts of the extension (e.g., open tabs) if immediate refresh is needed.
-            // This might involve sending a message via chrome.runtime.sendMessage.
-        }
-    } catch (error) {
-        console.error('NovaTab: Error handling bookmark change:', error);
-        // Consider logging the error using ErrorUtils if more detailed reporting is needed
-        ErrorUtils.logError(error, 'handleBookmarkChange');
+    // Clear existing timeout
+    if (bookmarkChangeTimeout) {
+        clearTimeout(bookmarkChangeTimeout);
     }
+
+    // Debounce: wait 500ms after last change
+    bookmarkChangeTimeout = setTimeout(async () => {
+        try {
+            const storageResult = await StorageUtils.get(NOVATAB_CONSTANTS.STORAGE_KEYS.APP_DATA);
+            const currentAppData = storageResult.appData;
+
+            if (currentAppData?.activeMode === 'bookmarks' && currentAppData?.bookmarks?.folderId) {
+                console.log('NovaTab: Bookmarks changed, generating new activeDisplayData...');
+
+                const newActiveDisplayData = await DataSyncUtils.generateActiveDisplayData(
+                    currentAppData,
+                    chrome.bookmarks
+                );
+
+                await StorageUtils.set({
+                    [NOVATAB_CONSTANTS.STORAGE_KEYS.ACTIVE_DISPLAY_DATA]: newActiveDisplayData
+                });
+
+                console.log('NovaTab: Updated activeDisplayData saved due to bookmark change.');
+            }
+        } catch (error) {
+            ErrorUtils.logError(error, 'handleBookmarkChange', {
+                bookmarkId: id,
+                changeInfo: changeInfo
+            });
+        }
+    }, 500);
 }
 
 // Handle action button click
@@ -185,19 +218,77 @@ async function handleManualBookmarkRefresh(sendResponse) {
             sendResponse({ success: false, message: "Not in bookmarks mode or no folder selected." });
         }
     } catch (error) {
-        console.error('NovaTab: Error handling manual bookmark refresh:', error);
-        ErrorUtils.logError(error, 'handleManualBookmarkRefresh');
+        ErrorUtils.logError(error, 'handleManualBookmarkRefresh', {
+            mode: currentAppData?.activeMode,
+            hasFolderId: !!currentAppData?.bookmarks?.folderId
+        });
         sendResponse({ success: false, error: error.message });
     }
 }
 
+/**
+ * Cleans up orphaned icon overrides for bookmarks that no longer exist.
+ * Runs periodically to prevent unbounded storage growth.
+ *
+ * @returns {Promise<number>} Number of overrides cleaned up
+ */
+async function cleanupOrphanedIconOverrides() {
+    try {
+        const storageResult = await StorageUtils.get(NOVATAB_CONSTANTS.STORAGE_KEYS.APP_DATA);
+        const appData = storageResult.appData;
+
+        if (!appData?.bookmarks?.iconOverrides || !appData?.bookmarks?.folderId) {
+            return 0;
+        }
+
+        console.log('NovaTab: Starting icon override cleanup...');
+
+        const activeUrls = new Set();
+        const activeData = await DataSyncUtils.generateActiveDisplayData(appData, chrome.bookmarks);
+
+        activeData.categories.forEach(cat => {
+            cat.sites.forEach(site => {
+                activeUrls.add(site.url);
+            });
+        });
+
+        let cleaned = 0;
+        const iconOverrides = appData.bookmarks.iconOverrides;
+
+        Object.keys(iconOverrides).forEach(url => {
+            if (!activeUrls.has(url)) {
+                delete iconOverrides[url];
+                cleaned++;
+            }
+        });
+
+        if (cleaned > 0) {
+            console.log(`NovaTab: Cleaned ${cleaned} orphaned icon overrides`);
+            await StorageUtils.set({
+                [NOVATAB_CONSTANTS.STORAGE_KEYS.APP_DATA]: appData
+            });
+        } else {
+            console.log('NovaTab: No orphaned icon overrides found');
+        }
+
+        return cleaned;
+
+    } catch (error) {
+        ErrorUtils.logError(error, 'cleanupOrphanedIconOverrides', {
+            hasIconOverrides: !!appData?.bookmarks?.iconOverrides,
+            hasFolderId: !!appData?.bookmarks?.folderId
+        });
+        return 0;
+    }
+}
 
 chrome.runtime.onSuspend.addListener(() => {
     console.log('NovaTab: Extension suspending');
 });
 
-chrome.runtime.onStartup.addListener(() => {
+chrome.runtime.onStartup.addListener(async () => {
     console.log('NovaTab: Extension starting up');
+    await cleanupOrphanedIconOverrides();
 });
 
 console.log('NovaTab: Background service worker initialized');

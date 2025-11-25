@@ -112,7 +112,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                 };
             }
         } catch (error) {
-            console.error("NovaTab: Error loading data:", error);
+            ErrorUtils.logError(error, 'loadAndRender', {
+                hasSettings: !!result?.appSettings,
+                hasDisplayData: !!result?.activeDisplayData
+            });
             showErrorMessage(NOVATAB_MESSAGES.ERRORS.STORAGE_FAILED);
             settings = { ...NOVATAB_CONSTANTS.DEFAULT_SETTINGS };
             appDataForDisplay = {
@@ -158,6 +161,20 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     });
 
+    /**
+     * Displays a temporary error message to the user as a toast notification.
+     *
+     * @param {string} message - The error message to display
+     *
+     * @description
+     * Creates a floating error notification that appears in the top-right corner
+     * of the page. The notification automatically fades out after 5 seconds.
+     * Only one error message is shown at a time (previous messages are removed).
+     *
+     * @example
+     * showErrorMessage(NOVATAB_MESSAGES.ERRORS.STORAGE_FAILED);
+     * // Shows: "Failed to save settings. Please try again."
+     */
     function showErrorMessage(message) {
         console.error("NovaTab:", message);
         // Enhanced error display for users
@@ -165,7 +182,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (existingError) {
             existingError.remove();
         }
-        
+
         const errorDiv = document.createElement('div');
         errorDiv.className = 'novatab-error-message';
         errorDiv.style.cssText = `
@@ -184,7 +201,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         `;
         errorDiv.textContent = message;
         document.body.appendChild(errorDiv);
-        
+
         setTimeout(() => {
             errorDiv.style.opacity = '0';
             errorDiv.style.transition = 'opacity 0.3s ease';
@@ -209,6 +226,18 @@ document.addEventListener('DOMContentLoaded', async () => {
         orderedCategories.forEach(category => renderCategory(category));
     }
 
+    /**
+     * Displays the welcome message when no sites are configured.
+     *
+     * @description
+     * Shows a friendly welcome screen with instructions for first-time users.
+     * Provides a link to the options page where users can configure their dashboard.
+     * This function is called when no categories or sites are available to display.
+     *
+     * @example
+     * renderWelcomeMessage();
+     * // Displays welcome screen with link to settings
+     */
     function renderWelcomeMessage() {
         categoriesContainer.innerHTML = `
             <div class="welcome-container">
@@ -583,7 +612,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             customIconUrlInput.value = existingCustomUrl;
             customIconUrlInput.focus();
         } catch (error) {
-            console.error("NovaTab: Error loading custom icon data:", error);
+            ErrorUtils.logError(error, 'handleSetCustomIcon', {
+                hasSiteForModal: !!currentSiteForModal,
+                siteUrl: currentSiteForModal?.siteUrl
+            });
             showErrorMessage(NOVATAB_MESSAGES.ERRORS.OPERATION_FAILED);
         }
 
@@ -620,7 +652,11 @@ document.addEventListener('DOMContentLoaded', async () => {
             currentSiteForModal = null;
             await debouncedLoadAndRender();
         } catch (error) {
-            console.error("NovaTab: Error saving custom icon:", error);
+            ErrorUtils.logError(error, 'handleSaveCustomIcon', {
+                iconUrl: newIconUrl,
+                siteUrl: currentSiteForModal?.siteUrl,
+                isBookmark: currentSiteForModal?.isBookmarkSiteContext
+            });
             alert(NOVATAB_MESSAGES.ERRORS.OPERATION_FAILED);
 
             // Remove loading state on error
@@ -698,7 +734,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             await loadAndRender();
             console.log("NovaTab: Initialization completed successfully.");
         } catch (error) {
-            console.error("NovaTab: Failed to initialize:", error);
+            ErrorUtils.logError(error, 'initialize (new_tab.js)', {
+                timestamp: Date.now()
+            });
             showErrorMessage(NOVATAB_MESSAGES.ERRORS.OPERATION_FAILED);
         }
     })();
