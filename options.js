@@ -88,7 +88,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const statusMsg = "Changes pending. Click 'Save All Settings' to apply.";
         if (isDirty) {
             // Show a persistent info message that changes are pending
-            DOMUtils.showStatus(elements.statusMessageUI, statusMsg, STATUS_TYPES.INFO, 0); 
+            DOMUtils.showStatus(elements.statusMessageUI, statusMsg, STATUS_TYPES.INFO, 0);
         } else {
             // Clear the "pending" message if changes are saved or reverted
             // Ensure we only clear our specific pending message, not other success/error messages that might be temporary.
@@ -327,12 +327,15 @@ document.addEventListener('DOMContentLoaded', async () => {
             elements.gradientEndColorInput
         ];
 
+        // Debounced handler for appearance inputs to prevent excessive function calls
+        const debouncedAppearanceInputHandler = DOMUtils.debounce(() => {
+            debounceValidation();
+            setUnsavedChanges(true);
+        }, 300);
+
         appearanceInputElements.forEach(input => {
             if (input) {
-                input.addEventListener('input', () => {
-                    debounceValidation(); 
-                    setUnsavedChanges(true); 
-                });
+                input.addEventListener('input', debouncedAppearanceInputHandler);
             }
         });
         
