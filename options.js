@@ -531,8 +531,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         try {
             const catElement = event.target.closest('.manual-category-item');
             const catName = catElement.querySelector('.manual-category-name-input').value;
-            
-            if (!confirm(`Remove category "${catName}"? ${NOVATAB_MESSAGES.WARNINGS.DELETE_CATEGORY_CONFIRM}`)) {
+
+            if (!confirm(NOVATAB_MESSAGES.WARNINGS.DELETE_CATEGORY_CONFIRM)) {
                 return;
             }
             
@@ -670,13 +670,13 @@ document.addEventListener('DOMContentLoaded', async () => {
             // Check if we have bookmark permission first
             const hasPermission = await checkBookmarkPermission();
             if (!hasPermission) {
-                elements.bookmarkFolderSelector.innerHTML = '<option value="">Bookmark permission required</option>';
+                elements.bookmarkFolderSelector.innerHTML = `<option value="">${NOVATAB_MESSAGES.ERRORS.BOOKMARK_PERMISSION_DENIED}</option>`;
                 DOMUtils.showStatus(elements.statusMessageUI, NOVATAB_MESSAGES.ERRORS.BOOKMARK_PERMISSION_DENIED, STATUS_TYPES.ERROR);
                 return;
             }
 
             const tree = await chrome.bookmarks.getTree();
-            elements.bookmarkFolderSelector.innerHTML = '<option value="">-- Select a Root Bookmark Folder --</option>';
+            elements.bookmarkFolderSelector.innerHTML = `<option value="">${NOVATAB_MESSAGES.PLACEHOLDERS.SELECT_BOOKMARK_FOLDER}</option>`;
             
             if (tree?.length > 0) {
                 populateFolderOptionsRecursive(tree[0], 0, elements.bookmarkFolderSelector);
@@ -687,7 +687,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         } catch (error) {
             handleError(error, 'loading bookmark folders');
-            elements.bookmarkFolderSelector.innerHTML = '<option value="">Error loading folders</option>';
+            elements.bookmarkFolderSelector.innerHTML = `<option value="">${NOVATAB_MESSAGES.ERRORS.BOOKMARK_FOLDERS_LOAD_ERROR}</option>`;
         }
     }
 

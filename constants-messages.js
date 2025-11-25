@@ -32,6 +32,7 @@ const NOVATAB_MESSAGES = {
         BOOKMARK_PERMISSION_DENIED: 'Bookmark access denied. Please check extension permissions.',
         BOOKMARK_FOLDER_NOT_FOUND: 'Selected bookmark folder not found',
         BOOKMARK_REFRESH_FAILED: 'Failed to refresh bookmarks. Please try again.',
+        BOOKMARK_FOLDERS_LOAD_ERROR: 'Error loading folders',
         INVALID_JSON: 'Invalid configuration file. Please check the format.',
         IMPORT_FAILED: 'Failed to import configuration. Please try again.',
         EXPORT_FAILED: 'Failed to export configuration. Please try again.',
@@ -51,7 +52,8 @@ const NOVATAB_MESSAGES = {
         DELETE_CATEGORY_CONFIRM: 'Are you sure you want to delete this category?',
         DELETE_SITE_CONFIRM: 'Are you sure you want to delete this site?',
         RESET_SETTINGS_CONFIRM: 'This will reset all settings to default. Are you sure?',
-        NO_BOOKMARKS_FOUND: 'No bookmarks found in the selected folder'
+        NO_BOOKMARKS_FOUND: 'No bookmarks found in the selected folder',
+        CLEAR_ICON_CONFIRM: 'You are about to clear the custom icon. Continue?'
     },
 
     // Info messages
@@ -89,7 +91,8 @@ const NOVATAB_MESSAGES = {
         SITE_NAME: 'e.g., GitHub',
         SITE_URL: 'https://example.com',
         ICON_URL: 'https://example.com/icon.png',
-        SEARCH_SITES: 'Search sites...'
+        SEARCH_SITES: 'Search sites...',
+        SELECT_BOOKMARK_FOLDER: '-- Select a Root Bookmark Folder --'
     }
 };
 

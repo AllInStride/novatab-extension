@@ -517,7 +517,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         // Confirm if clearing icon
-        if (!newIconUrl && !confirm("You are about to clear the custom icon. Continue?")) {
+        if (!newIconUrl && !confirm(NOVATAB_MESSAGES.WARNINGS.CLEAR_ICON_CONFIRM)) {
             return;
         }
 
