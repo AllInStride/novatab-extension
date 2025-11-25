@@ -33,6 +33,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     let faviconObserver;
 
     function initializeFaviconObserver() {
+        // Disconnect existing observer if present to prevent memory leaks
+        if (faviconObserver) {
+            faviconObserver.disconnect();
+            faviconObserver = null;
+        }
+
         // Check if IntersectionObserver is supported
         if (!('IntersectionObserver' in window)) {
             console.warn('NovaTab: IntersectionObserver not supported, falling back to eager loading');
@@ -58,6 +64,13 @@ document.addEventListener('DOMContentLoaded', async () => {
             root: null, // viewport
             rootMargin: '100px', // Start loading 100px before entering viewport
             threshold: 0.01
+        });
+
+        // Clean up observer on page unload to prevent memory leaks
+        window.addEventListener('beforeunload', () => {
+            if (faviconObserver) {
+                faviconObserver.disconnect();
+            }
         });
 
         return faviconObserver;
@@ -301,16 +314,18 @@ document.addEventListener('DOMContentLoaded', async () => {
         faviconImg.loading = 'lazy'; // Native lazy loading as fallback
         faviconImg.dataset.retryCount = '0';
 
-        // Determine icon URL
+        // Determine icon URL and check if it's a custom icon
         const iconUrl = URLUtils.getFaviconUrl(site);
+        const isCustomIcon = site.customIconUrl && URLUtils.isValidImageUrl(site.customIconUrl);
 
-        // Use lazy loading if observer is available
-        if (faviconObserver) {
+        // Use lazy loading only for default favicons, not custom icons
+        // Custom icons should load immediately for better UX
+        if (faviconObserver && !isCustomIcon) {
             faviconImg.src = FAVICON_PLACEHOLDER;
             faviconImg.dataset.lazySrc = iconUrl;
             faviconObserver.observe(faviconImg);
         } else {
-            // Fallback: load immediately if no observer
+            // Load immediately: no observer, or custom icon that user selected
             faviconImg.src = iconUrl;
         }
 
@@ -329,6 +344,17 @@ document.addEventListener('DOMContentLoaded', async () => {
                 this.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgdmlld0JveD0iMCAwIDIwMCAyMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CiAgICA8ZGVmcz4KICAgICAgICA8bGluZWFyR3JhZGllbnQgaWQ9InNxdWFyZUdyYWRpZW50IiB4MT0iMCUiIHkxPSIwJSIgeDI9IjEwMCUiIHkyPSIxMDAlIj4KICAgICAgICAgICAgPHN0b3Agb2Zmc2V0PSIwJSIgc3R5bGU9InN0b3AtY29sb3I6IzIxOWViYztzdG9wLW9wYWNpdHk6MSIgLz4KICAgICAgICAgICAgPHN0b3Agb2Zmc2V0PSIxMDAlIiBzdHlsZT0ic3RvcC1jb2xvcjojMWI3ZmE2O3N0b3Atb3BhY2l0eToxIiAvPgogICAgICAgIDwvbGluZWFyR3JhZGllbnQ+CiAgICA8L2RlZnM+CgogICAgPHJlY3QgeD0iMTAiIHk9IjEwIiB3aWR0aD0iNDIiIGhlaWdodD0iNDIiIHJ4PSI0IiBjbGFzcz0iZ3JpZC1zcXVhcmUiIGZpbGw9InVybCgjc3F1YXJlR3JhZGllbnQpIi8+CiAgICA8cmVjdCB4PSI1NSIgeT0iMTAiIHdpZHRoPSI0MiIgaGVpZ2h0PSI0MiIgcng9IjQiIGNsYXNzPSJncmlkLXNxdWFyZSIgZmlsbD0idXJsKCNzcXVhcmVHcmFkaWVudCkiLz4KICAgIDxyZWN0IHg9IjEwMCIgeT0iMTAiIHdpZHRoPSI0MiIgaGVpZ2h0PSI0MiIgcng9IjQiIGNsYXNzPSJncmlkLXNxdWFyZSIgZmlsbD0idXJsKCNzcXVhcmVHcmFkaWVudCkiLz4KICAgIDxyZWN0IHg9IjE0NSIgeT0iMTAiIHdpZHRoPSI0MiIgaGVpZ2h0PSI0MiIgcng9IjQiIGNsYXNzPSJncmlkLXNxdWFyZSIgZmlsbD0idXJsKCNzcXVhcmVHcmFkaWVudCkiLz4KCiAgICA8cmVjdCB4PSIxMCIgeT0iNTUiIHdpZHRoPSI0MiIgaGVpZ2h0PSI0MiIgcng9IjQiIGNsYXNzPSJncmlkLXNxdWFyZSIgZmlsbD0idXJsKCNzcXVhcmVHcmFkaWVudCkiLz4KICAgIDxyZWN0IHg9IjU1IiB5PSI1NSIgd2lkdGg9IjQyIiBoZWlnaHQ9IjQyIiByeD0iNCIgY2xhc3M9ImdyaWQtc3F1YXJlIiBmaWxsPSJ1cmwoI3NxdWFyZUdyYWRpZW50KSIvPgogICAgPHJlY3QgeD0iMTAwIiB5PSI1NSIgd2lkdGg9IjQyIiBoZWlnaHQ9IjQyIiByeD0iNCIgY2xhc3M9ImdyaWQtc3F1YXJlIiBmaWxsPSJ1cmwoI3NxdWFyZUdyYWRpZW50KSIvPgogICAgPHJlY3QgeD0iMTQ1IiB5PSI1NSIgd2lkdGg9IjQyIiBoZWlnaHQ9IjQyIiByeD0iNCIgY2xhc3M9ImdyaWQtc3F1YXJlIiBmaWxsPSJ1cmwoI3NxdWFyZUdyYWRpZW50KSIvPgoKICAgIDxyZWN0IHg9IjEwIiB5PSIxMDAiIHdpZHRoPSI0MiIgaGVpZ2h0PSI0MiIgcng9IjQiIGNsYXNzPSJncmlkLXNxdWFyZSIgZmlsbD0idXJsKCNzcXVhcmVHcmFkaWVudCkiLz4KICAgIDxyZWN0IHg9IjU1IiB5PSIxMDAiIHdpZHRoPSI0MiIgaGVpZ2h0PSI0MiIgcng9IjQiIGNsYXNzPSJncmlkLXNxdWFyZSIgZmlsbD0idXJsKCNzcXVhcmVHcmFkaWVudCkiLz4KICAgIDxyZWN0IHg9IjEwMCIgeT0iMTAwIiB3aWR0aD0iNDIiIGhlaWdodD0iNDIiIHJ4PSI0IiBjbGFzcz0iZ3JpZC1zcXVhcmUiIGZpbGw9InVybCgjc3F1YXJlR3JhZGllbnQpIi8+CiAgICA8cmVjdCB4PSIxNDUiIHk9IjEwMCIgd2lkdGg9IjQyIiBoZWlnaHQ9IjQyIiByeD0iNCIgY2xhc3M9ImdyaWQtc3F1YXJlIiBmaWxsPSJ1cmwoI3NxdWFyZUdyYWRpZW50KSIvPgoKICAgIDxyZWN0IHg9IjEwIiB5PSIxNDUiIHdpZHRoPSI0MiIgaGVpZ2h0PSI0MiIgcng9IjQiIGNsYXNzPSJncmlkLXNxdWFyZSIgZmlsbD0idXJsKCNzcXVhcmVHcmFkaWVudCkiLz4KICAgIDxyZWN0IHg9IjU1IiB5PSIxNDUiIHdpZHRoPSI0MiIgaGVpZ2h0PSI0MiIgcng9IjQiIGNsYXNzPSJncmlkLXNxdWFyZSIgZmlsbD0idXJsKCNzcXVhcmVHcmFkaWVudCkiLz4KICAgIDxyZWN0IHg9IjEwMCIgeT0iMTQ1IiB3aWR0aD0iNDIiIGhlaWdodD0iNDIiIHJ4PSI0IiBjbGFzcz0iZ3JpZC1zcXVhcmUiIGZpbGw9InVybCgjc3F1YXJlR3JhZGllbnQpIi8+CiAgICA8cmVjdCB4PSIxNDUiIHk9IjE0NSIgd2lkdGg9IjQyIiBoZWlnaHQ9IjQyIiByeD0iNCIgY2xhc3M9ImdyaWQtc3F1YXJlIiBmaWxsPSJ1cmwoI3NxdWFyZUdyYWRpZW50KSIvPgo8L3N2Zz4=';
                 this.alt = 'Fallback Icon';
             }
+
+            // Clean up lazy loading state on error to prevent race conditions
+            if (this.dataset.lazySrc) {
+                delete this.dataset.lazySrc;
+                if (faviconObserver) {
+                    faviconObserver.unobserve(this);
+                }
+            }
+            // Remove lazy loading classes
+            this.classList.remove('lazy-favicon');
+            this.classList.remove('favicon-loaded');
         };
 
         faviconWrapper.appendChild(faviconImg);
