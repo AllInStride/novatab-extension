@@ -188,6 +188,42 @@ const URLUtils = {
     },
 
     /**
+     * Validates if a URL is safe for use as an image source.
+     * Only allows http, https, and data:image/ URLs.
+     * Blocks javascript:, vbscript:, data:text/html, etc.
+     *
+     * @param {string} url - URL to validate
+     * @returns {boolean} True if URL is safe for image use
+     * @example
+     * isValidImageUrl('https://example.com/icon.png') // true
+     * isValidImageUrl('javascript:alert(1)') // false
+     * isValidImageUrl('data:image/png;base64,...') // true
+     * isValidImageUrl('data:text/html,<script>alert(1)</script>') // false
+     */
+    isValidImageUrl(url) {
+        if (!url || typeof url !== 'string') return false;
+
+        try {
+            const urlObj = new URL(url);
+
+            // Allow http and https
+            if (urlObj.protocol === 'http:' || urlObj.protocol === 'https:') {
+                return true;
+            }
+
+            // Allow data URLs only for images
+            if (urlObj.protocol === 'data:') {
+                return url.toLowerCase().startsWith('data:image/');
+            }
+
+            // Block everything else (javascript:, vbscript:, file:, etc.)
+            return false;
+        } catch {
+            return false;
+        }
+    },
+
+    /**
      * Gets the appropriate favicon URL for a site.
      *
      * @param {Object} site - The site object
@@ -222,7 +258,7 @@ const URLUtils = {
             return NOVATAB_CONSTANTS.FAVICON_SERVICES.FALLBACK;
         }
 
-        if (site.customIconUrl && this.isValidUrl(site.customIconUrl)) {
+        if (site.customIconUrl && this.isValidImageUrl(site.customIconUrl)) {
             return site.customIconUrl;
         }
 
@@ -781,39 +817,50 @@ const GeneralUtils = {
     },
 
     /**
-     * Creates a deep clone of an object.
+     * Creates a deep clone of an object, handling nested objects and arrays.
+     * Uses structuredClone API (Chrome 98+) with fallback for edge cases.
      *
-     * @param {*} obj - The object to clone
-     * @returns {*} Deep cloned copy of the object
-     *
-     * @description
-     * Recursively clones objects, arrays, and dates.
-     * Handles:
-     * - Null and primitives (returned as-is)
-     * - Date objects (creates new Date with same time)
-     * - Arrays (recursively clones each element)
-     * - Plain objects (recursively clones all properties)
-     *
-     * Note: Does not handle functions, symbols, or circular references.
-     *
+     * @param {*} obj - Object to clone
+     * @returns {*} Deep cloned object
      * @example
-     * const original = {a: 1, b: {c: 2}, d: [3, 4]};
+     * const original = { nested: { value: 1 }, date: new Date() };
      * const cloned = GeneralUtils.deepClone(original);
-     * cloned.b.c = 999;
-     * console.log(original.b.c); // 2 (unchanged)
+     * cloned.nested.value = 2;
+     * console.log(original.nested.value); // Still 1
      */
     deepClone(obj) {
-        if (obj === null || typeof obj !== 'object') return obj;
-        if (obj instanceof Date) return new Date(obj.getTime());
-        if (obj instanceof Array) return obj.map(item => this.deepClone(item));
-        if (typeof obj === 'object') {
-            const cloned = {};
-            Object.keys(obj).forEach(key => {
-                cloned[key] = this.deepClone(obj[key]);
-            });
-            return cloned;
+        // Handle null and non-objects
+        if (obj === null || typeof obj !== 'object') {
+            return obj;
         }
-        return obj;
+
+        // Use modern structuredClone API (Chrome 98+, always available in Manifest V3)
+        try {
+            return structuredClone(obj);
+        } catch (error) {
+            console.warn('NovaTab: structuredClone failed, using fallback:', error);
+        }
+
+        // Fallback for unsupported types
+        // Handle Date
+        if (obj instanceof Date) {
+            return new Date(obj.getTime());
+        }
+
+        // Handle Array
+        if (obj instanceof Array) {
+            return obj.map(item => this.deepClone(item));
+        }
+
+        // Handle Object
+        const clonedObj = {};
+        for (const key in obj) {
+            if (obj.hasOwnProperty(key)) {
+                clonedObj[key] = this.deepClone(obj[key]);
+            }
+        }
+
+        return clonedObj;
     },
 
     /**
@@ -932,43 +979,81 @@ const ErrorUtils = {
     },
 
     /**
-     * Logs an error to the console with context information.
-     *
-     * @param {Error|Object} error - The error object to log
-     * @param {string} [context='unknown'] - Context describing where the error occurred
-     *
-     * @description
-     * Logs structured error information to the console including:
-     * - Context (where the error occurred)
-     * - Error message
-     * - Stack trace (if available)
-     * - ISO 8601 timestamp
-     *
-     * All errors are prefixed with 'NovaTab Error:' for easy filtering.
-     *
-     * @example
-     * try {
-     *   await riskyOperation();
-     * } catch (error) {
-     *   ErrorUtils.logError(error, 'riskyOperation');
-     * }
-     * // Console output:
-     * // NovaTab Error: {
-     * //   context: 'riskyOperation',
-     * //   message: 'Operation failed',
-     * //   stack: '...',
-     * //   timestamp: '2024-11-09T12:00:00.000Z'
-     * // }
+     * Logs errors with context and stores them for debugging
+     * @param {Error} error - The error object
+     * @param {string} context - Where the error occurred
+     * @param {Object} details - Additional details (optional)
      */
-    logError(error, context = 'unknown') {
-        const errorInfo = {
-            context,
-            message: error.message || error.toString(),
-            stack: error.stack,
-            timestamp: new Date().toISOString()
+    logError(error, context, details = {}) {
+        const errorLog = {
+            message: error.message || String(error),
+            stack: error.stack || '',
+            context: context || 'unknown',
+            details: details,
+            timestamp: new Date().toISOString(),
+            version: NOVATAB_CONSTANTS.VERSION,
+            userAgent: navigator.userAgent
         };
 
-        console.error('NovaTab Error:', errorInfo);
+        // Log to console
+        console.error('NovaTab Error:', errorLog);
+
+        // Store locally for debugging (async, don't block)
+        this.storeErrorLog(errorLog).catch(storageError => {
+            console.warn('Failed to store error log:', storageError);
+        });
+    },
+
+    /**
+     * Store error log in chrome.storage.local
+     * Keeps last 50 errors to prevent storage bloat
+     * @param {Object} errorLog - The error log entry
+     */
+    async storeErrorLog(errorLog) {
+        try {
+            const result = await chrome.storage.local.get(['errorLog']);
+            const errors = result.errorLog || [];
+
+            // Add new error
+            errors.push(errorLog);
+
+            // Keep only last 50 errors
+            if (errors.length > 50) {
+                errors.shift();
+            }
+
+            await chrome.storage.local.set({ errorLog: errors });
+        } catch (error) {
+            // Don't log recursively
+            console.warn('Failed to store error log:', error);
+        }
+    },
+
+    /**
+     * Get all stored error logs
+     * @returns {Promise<Array>} Array of error log entries
+     */
+    async getErrorLogs() {
+        try {
+            const result = await chrome.storage.local.get(['errorLog']);
+            return result.errorLog || [];
+        } catch (error) {
+            console.error('Failed to retrieve error logs:', error);
+            return [];
+        }
+    },
+
+    /**
+     * Clear all stored error logs
+     * @returns {Promise<void>}
+     */
+    async clearErrorLogs() {
+        try {
+            await chrome.storage.local.remove(['errorLog']);
+            console.log('NovaTab: Error logs cleared');
+        } catch (error) {
+            console.error('Failed to clear error logs:', error);
+        }
     }
 };
 

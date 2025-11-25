@@ -124,6 +124,31 @@
                 <p>Reset all settings to defaults. This cannot be undone.</p>
                 <button id="reset-all-settings-btn" class="button danger-button">Reset All Settings</button>
             </section>
+
+            <!-- Error Log Section -->
+            <section class="settings-section">
+                <h2>Error Logs (Debug)</h2>
+                <p class="section-description">
+                    View and export error logs to help diagnose issues. Logs are stored locally and never sent automatically.
+                </p>
+
+                <div class="form-group">
+                    <button id="view-error-logs-btn" class="button secondary-button">
+                        View Error Logs (<span id="error-count">0</span>)
+                    </button>
+                    <button id="export-error-logs-btn" class="button secondary-button">
+                        Export Error Logs
+                    </button>
+                    <button id="clear-error-logs-btn" class="button secondary-button">
+                        Clear Error Logs
+                    </button>
+                </div>
+
+                <div id="error-log-display" class="error-log-display" style="display: none;">
+                    <h4>Recent Errors</h4>
+                    <pre id="error-log-content" class="error-log-content"></pre>
+                </div>
+            </section>
         </div>
 
         <footer>

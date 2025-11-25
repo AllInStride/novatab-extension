@@ -624,6 +624,35 @@ button:focus,
     to { transform: rotate(360deg); }
 }
 
+/* Error log section */
+.error-log-display {
+    margin-top: 20px;
+    padding: 15px;
+    background-color: #f8f9fa;
+    border: 1px solid #e0e5ec;
+    border-radius: 8px;
+}
+
+.error-log-content {
+    max-height: 400px;
+    overflow-y: auto;
+    background-color: #ffffff;
+    border: 1px solid #d1d8e0;
+    border-radius: 4px;
+    padding: 12px;
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}
+
+.error-log-content:empty::before {
+    content: 'No errors logged';
+    color: #a0a0a0;
+    font-style: italic;
+}
+
 /* Dark mode support - DISABLED to force light mode always */
 /* @media (prefers-color-scheme: dark) {
     :root {

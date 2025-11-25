@@ -1127,6 +1127,131 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Call initializeFooter after DOM is loaded
     initializeFooter();
 
+    // --- ERROR LOG FUNCTIONS ---
+    /**
+     * Update error count badge
+     */
+    async function updateErrorCount() {
+        const errorCountEl = document.getElementById('error-count');
+        if (!errorCountEl) return;
+
+        try {
+            const errors = await ErrorUtils.getErrorLogs();
+            errorCountEl.textContent = errors.length;
+        } catch (error) {
+            console.error('Failed to update error count:', error);
+            errorCountEl.textContent = '?';
+        }
+    }
+
+    /**
+     * View error logs
+     */
+    async function handleViewErrorLogs() {
+        const errorDisplay = document.getElementById('error-log-display');
+        const errorContent = document.getElementById('error-log-content');
+
+        if (!errorDisplay || !errorContent) return;
+
+        try {
+            const errors = await ErrorUtils.getErrorLogs();
+
+            if (errors.length === 0) {
+                errorContent.textContent = 'No errors logged';
+            } else {
+                // Format errors for display
+                errorContent.textContent = JSON.stringify(errors, null, 2);
+            }
+
+            // Toggle display
+            errorDisplay.style.display = errorDisplay.style.display === 'none' ? 'block' : 'none';
+
+        } catch (error) {
+            console.error('Failed to view error logs:', error);
+            alert('Failed to load error logs');
+        }
+    }
+
+    /**
+     * Export error logs as JSON file
+     */
+    async function handleExportErrorLogs() {
+        try {
+            const errors = await ErrorUtils.getErrorLogs();
+
+            if (errors.length === 0) {
+                alert('No errors to export');
+                return;
+            }
+
+            const dataStr = JSON.stringify(errors, null, 2);
+            const dataBlob = new Blob([dataStr], { type: 'application/json' });
+            const url = URL.createObjectURL(dataBlob);
+
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `novatab-error-logs-${Date.now()}.json`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+
+            URL.revokeObjectURL(url);
+
+            const statusMsg = document.getElementById('status-message');
+            DOMUtils.showStatus(statusMsg, 'Error logs exported successfully', 'success');
+
+        } catch (error) {
+            console.error('Failed to export error logs:', error);
+            alert('Failed to export error logs');
+        }
+    }
+
+    /**
+     * Clear all error logs
+     */
+    async function handleClearErrorLogs() {
+        if (!confirm('Are you sure you want to clear all error logs?')) {
+            return;
+        }
+
+        try {
+            await ErrorUtils.clearErrorLogs();
+            await updateErrorCount();
+
+            const errorDisplay = document.getElementById('error-log-display');
+            if (errorDisplay) {
+                errorDisplay.style.display = 'none';
+            }
+
+            const statusMsg = document.getElementById('status-message');
+            DOMUtils.showStatus(statusMsg, 'Error logs cleared', 'success');
+
+        } catch (error) {
+            console.error('Failed to clear error logs:', error);
+            alert('Failed to clear error logs');
+        }
+    }
+
+    // Error log buttons
+    const viewErrorLogsBtn = document.getElementById('view-error-logs-btn');
+    const exportErrorLogsBtn = document.getElementById('export-error-logs-btn');
+    const clearErrorLogsBtn = document.getElementById('clear-error-logs-btn');
+
+    if (viewErrorLogsBtn) {
+        viewErrorLogsBtn.addEventListener('click', handleViewErrorLogs);
+    }
+
+    if (exportErrorLogsBtn) {
+        exportErrorLogsBtn.addEventListener('click', handleExportErrorLogs);
+    }
+
+    if (clearErrorLogsBtn) {
+        clearErrorLogsBtn.addEventListener('click', handleClearErrorLogs);
+    }
+
+    // Update error count on page load
+    updateErrorCount();
+
     // --- INITIALIZATION ---
     await initialize();
 });
