@@ -1,7 +1,7 @@
 // new_tab.js - Enhanced version with better error handling and URL parsing
 document.addEventListener('DOMContentLoaded', async () => {
     const categoriesContainer = document.getElementById('categories-container');
-    const bodyElement = document.body; 
+    const bodyElement = document.body;
     let settings = {};
     let appDataForDisplay = { categories: [], categoryOrder: [] };
 
@@ -9,11 +9,59 @@ document.addEventListener('DOMContentLoaded', async () => {
     const customContextMenu = document.getElementById('custom-context-menu');
     const setCustomIconCtxItem = document.getElementById('set-custom-icon-ctx');
     const customIconModal = document.getElementById('custom-icon-modal');
-    const modalCloseBtn = document.getElementById('modal-close-btn'); 
+    const modalCloseBtn = document.getElementById('modal-close-btn');
     const modalSaveIconBtn = document.getElementById('modal-save-icon-btn');
     const modalCancelIconBtn = document.getElementById('modal-cancel-icon-btn');
     const customIconUrlInput = document.getElementById('custom-icon-url-input');
     let currentSiteForModal = null;
+
+    /**
+     * Placeholder SVG for favicons while lazy loading
+     * Simple gray circle to avoid layout shift
+     */
+    const FAVICON_PLACEHOLDER = 'data:image/svg+xml;base64,' + btoa(`
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">
+    <rect width="32" height="32" rx="6" fill="#e0e5ec"/>
+    <circle cx="16" cy="16" r="8" fill="#d1d8e0"/>
+</svg>
+`);
+
+    /**
+     * Intersection Observer for lazy loading favicons
+     * Loads favicon images only when they enter the viewport
+     */
+    let faviconObserver;
+
+    function initializeFaviconObserver() {
+        // Check if IntersectionObserver is supported
+        if (!('IntersectionObserver' in window)) {
+            console.warn('NovaTab: IntersectionObserver not supported, falling back to eager loading');
+            return null;
+        }
+
+        faviconObserver = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    const img = entry.target;
+                    const lazySrc = img.dataset.lazySrc;
+
+                    if (lazySrc) {
+                        img.src = lazySrc;
+                        delete img.dataset.lazySrc;
+                        img.classList.remove('lazy-favicon');
+                        img.classList.add('favicon-loaded');
+                        faviconObserver.unobserve(img);
+                    }
+                }
+            });
+        }, {
+            root: null, // viewport
+            rootMargin: '100px', // Start loading 100px before entering viewport
+            threshold: 0.01
+        });
+
+        return faviconObserver;
+    }
 
     // Debounced loading function for better performance
     let loadingTimeout = null;
@@ -246,17 +294,30 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Create favicon
         const faviconWrapper = document.createElement('div');
         faviconWrapper.className = 'site-favicon-wrapper';
-        
-        const faviconImg = document.createElement('img'); 
-        faviconImg.className = 'site-favicon';
+
+        const faviconImg = document.createElement('img');
+        faviconImg.className = 'site-favicon lazy-favicon'; // Add lazy class
         faviconImg.alt = `${site.name} Favicon`;
-        faviconImg.src = URLUtils.getFaviconUrl(site); // Use URLUtils
+        faviconImg.loading = 'lazy'; // Native lazy loading as fallback
         faviconImg.dataset.retryCount = '0';
+
+        // Determine icon URL
+        const iconUrl = URLUtils.getFaviconUrl(site);
+
+        // Use lazy loading if observer is available
+        if (faviconObserver) {
+            faviconImg.src = FAVICON_PLACEHOLDER;
+            faviconImg.dataset.lazySrc = iconUrl;
+            faviconObserver.observe(faviconImg);
+        } else {
+            // Fallback: load immediately if no observer
+            faviconImg.src = iconUrl;
+        }
 
         // Improved error handling for favicon with multiple fallbacks
         faviconImg.onerror = function() {
             const retryCount = parseInt(this.dataset.retryCount) || 0;
-            
+
             if (retryCount === 0) {
                 // First retry: try default favicon
                 this.dataset.retryCount = '1';
@@ -269,7 +330,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 this.alt = 'Fallback Icon';
             }
         };
-        
+
         faviconWrapper.appendChild(faviconImg);
 
         // Create site name
@@ -606,6 +667,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         try {
             setupEventListeners();
             setupKeyboardAccessibility();
+            // Initialize favicon lazy loading observer
+            initializeFaviconObserver();
             await loadAndRender();
             console.log("NovaTab: Initialization completed successfully.");
         } catch (error) {

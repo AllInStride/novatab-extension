@@ -533,6 +533,16 @@ body {
     pointer-events: none;
 }
 
+/* Lazy loading favicon styles */
+.site-favicon.lazy-favicon {
+    opacity: 0.6;
+    transition: opacity 0.3s ease;
+}
+
+.site-favicon.favicon-loaded {
+    opacity: 1;
+}
+
 /* Responsive design improvements */
 @media (max-width: 1200px) {
     #categories-container {
