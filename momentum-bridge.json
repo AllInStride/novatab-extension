@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "extensionId": "hldcbbiabmeilbmcgeaecmkmhmllagcg",
+  "callerOrigin": "chrome-extension://hldcbbiabmeilbmcgeaecmkmhmllagcg",
+  "nativeHostName": "com.allinstride.momentum.novatab",
+  "nativeHostPath": "/Applications/Momentum Command.app/Contents/MacOS/momentum-command-native-host",
+  "nativeHostRequirement": "identifier \"com.allinstride.momentum.command.native-host\"",
+  "browserAssetSha256": "35b6a984f5faf0c08b566aca58b5d7c276df1055fac7f05448647dc865bcb774"
+}
