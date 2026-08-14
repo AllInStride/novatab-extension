@@ -94,6 +94,75 @@ body {
     margin: 0 auto;
 }
 
+.momentum-ambient {
+    width: 100%;
+    margin: 0 0 24px;
+    padding: 18px 20px;
+    border: 1px solid rgba(255, 255, 255, 0.65);
+    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.72);
+    box-shadow: 0 8px 30px rgba(45, 55, 72, 0.06);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+}
+
+.momentum-ambient-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.momentum-ambient-heading h2 {
+    margin: 0;
+    color: var(--secondary-color);
+    font-size: 18px;
+    letter-spacing: -0.02em;
+}
+
+.momentum-ambient-badge {
+    padding: 3px 8px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 600;
+    background: #e8edf3;
+    color: #526070;
+}
+
+.momentum-ambient-badge.live { background: #ddf7e8; color: #196c3a; }
+.momentum-ambient-badge.cached { background: #fff2cf; color: #805b00; }
+.momentum-ambient-pulse,
+.momentum-ambient-unavailable { margin: 8px 0 0; color: #647184; font-size: 13px; }
+
+.momentum-ambient-tasks {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+    margin: 14px 0 0;
+    padding: 0;
+    list-style: none;
+}
+
+.momentum-ambient-tasks li {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    padding: 10px 12px;
+    border-radius: 10px;
+    background: rgba(245, 247, 250, 0.9);
+    color: var(--text-color);
+    font-size: 13px;
+}
+
+.momentum-priority { flex: 0 0 auto; font-size: 10px; font-weight: 700; color: #566273; }
+.momentum-priority.p0 { color: #a32626; }
+.momentum-priority.p1 { color: #9a5d00; }
+
+@media (max-width: 760px) {
+    .momentum-ambient-tasks { grid-template-columns: 1fr; }
+}
+
 /* Categories container with improved grid */
 #categories-container {
     width: 100%;

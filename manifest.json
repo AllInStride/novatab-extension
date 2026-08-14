@@ -7,11 +7,13 @@
   
   "permissions": [
     "storage",
-    "bookmarks"
+    "bookmarks",
+    "nativeMessaging"
   ],
   
   "host_permissions": [
-    "https://www.google.com/"
+    "https://www.google.com/",
+    "http://127.0.0.1/*"
   ],
   
   "chrome_url_overrides": {
@@ -46,7 +48,7 @@
   },
   
   "content_security_policy": {
-    "extension_pages": "script-src 'self'; object-src 'self'; connect-src https://www.google.com/;"
+    "extension_pages": "script-src 'self'; object-src 'self'; connect-src https://www.google.com/ http://127.0.0.1:*;"
   },
   
   "web_accessible_resources": [
