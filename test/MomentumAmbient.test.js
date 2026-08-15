@@ -35,6 +35,41 @@ test('shipped browser asset is bound to the exact Momentum bridge contract', () 
   expect(createHash('sha256').update(asset).digest('hex')).toBe(contract.browserAssetSha256);
 });
 
+test('normalizes only Chrome compatibility headers on the fixed Momentum loopback request', () => {
+  const root = resolve(__dirname, '..');
+  const manifest = JSON.parse(readFileSync(resolve(root, 'manifest.json'), 'utf8'));
+  const rules = JSON.parse(readFileSync(resolve(root, 'momentum-loopback-rules.json'), 'utf8'));
+
+  expect(manifest.permissions).toContain('declarativeNetRequestWithHostAccess');
+  expect(manifest.declarative_net_request).toEqual({
+    rule_resources: [{
+      id: 'momentum_loopback',
+      enabled: true,
+      path: 'momentum-loopback-rules.json',
+    }],
+  });
+  expect(rules).toEqual([{
+    id: 1,
+    priority: 1,
+    action: {
+      type: 'modifyHeaders',
+      requestHeaders: [
+        { header: 'DNT', operation: 'remove' },
+        {
+          header: 'Origin',
+          operation: 'set',
+          value: 'chrome-extension://hldcbbiabmeilbmcgeaecmkmhmllagcg',
+        },
+      ],
+    },
+    condition: {
+      regexFilter: '^http://127\\.0\\.0\\.1:[0-9]+/v1/ambient$',
+      initiatorDomains: ['hldcbbiabmeilbmcgeaecmkmhmllagcg'],
+      resourceTypes: ['xmlhttprequest'],
+    },
+  }]);
+});
+
 test('strictly validates the minimal payload and IPv4-only one-shot grant', () => {
   expect(parseAmbientPayload(JSON.parse(JSON.stringify(live)))).toEqual(live);
   expect(() => parseAmbientPayload({ ...live, token: 'no' })).toThrow('invalid_ambient_payload');

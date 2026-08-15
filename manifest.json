@@ -8,7 +8,8 @@
   "permissions": [
     "storage",
     "bookmarks",
-    "nativeMessaging"
+    "nativeMessaging",
+    "declarativeNetRequestWithHostAccess"
   ],
   
   "host_permissions": [
@@ -46,6 +47,16 @@
   "background": {
     "service_worker": "background.js"
   },
+
+  "declarative_net_request": {
+    "rule_resources": [
+      {
+        "id": "momentum_loopback",
+        "enabled": true,
+        "path": "momentum-loopback-rules.json"
+      }
+    ]
+  },
   
   "content_security_policy": {
     "extension_pages": "script-src 'self'; object-src 'self'; connect-src https://www.google.com/ http://127.0.0.1:*;"
@@ -62,5 +73,5 @@
     }
   ],
   
-  "minimum_chrome_version": "88"
+  "minimum_chrome_version": "101"
 }
