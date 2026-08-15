@@ -1,0 +1,29 @@
+[
+  {
+    "id": 1,
+    "priority": 1,
+    "action": {
+      "type": "modifyHeaders",
+      "requestHeaders": [
+        {
+          "header": "DNT",
+          "operation": "remove"
+        },
+        {
+          "header": "Origin",
+          "operation": "set",
+          "value": "chrome-extension://hldcbbiabmeilbmcgeaecmkmhmllagcg"
+        }
+      ]
+    },
+    "condition": {
+      "regexFilter": "^http://127\\.0\\.0\\.1:[0-9]+/v1/ambient$",
+      "initiatorDomains": [
+        "hldcbbiabmeilbmcgeaecmkmhmllagcg"
+      ],
+      "resourceTypes": [
+        "xmlhttprequest"
+      ]
+    }
+  }
+]
