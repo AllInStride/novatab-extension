@@ -5,5 +5,5 @@
   "nativeHostName": "com.allinstride.momentum.novatab",
   "nativeHostPath": "/Applications/Momentum.app/Contents/MacOS/momentum-command-native-host",
   "nativeHostRequirement": "identifier \"com.allinstride.momentum.command.native-host\"",
-  "browserAssetSha256": "39903ed93dcbed4f5d08129e970533c242b81e7a228fe5cd3b7a3d9263d330e3"
+  "browserAssetSha256": "1b239d9346bbca2147d9936d1efc339e2e4274b81daeaa175b3aa60d6ba8f11d"
 }

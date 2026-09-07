@@ -111,6 +111,9 @@
         const dateTime = timestamp => new Intl.DateTimeFormat(undefined, {
             weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit',
         }).format(new Date(timestamp));
+        const dateOnly = timestamp => new Intl.DateTimeFormat(undefined, {
+            weekday: 'short', month: 'short', day: 'numeric',
+        }).format(new Date(timestamp));
         const header = add(container, 'div', '', 'momentum-workbench-header');
         add(header, 'h2', 'Momentum');
         const badge = add(header, 'span', state.kind === 'live' ? 'Live' : state.kind === 'cached' ? 'Last good' : 'Unavailable', `momentum-ambient-badge ${state.kind}`);
@@ -144,7 +147,10 @@
         launch(actions, 'Inbox', 'inbox'); launch(actions, 'Review', 'review');
         if (state.kind === 'unavailable') return;
         const payload = state.payload;
-        const freshness = source => state.kind === 'cached' && !['unavailable', 'disabled'].includes(source.state) ? 'cached' : source.state;
+        const freshness = source => {
+            if (state.kind !== 'cached' || ['unavailable', 'disabled'].includes(source.state)) return source.state;
+            return source.state === 'live' ? 'cached' : `cached · ${source.state}`;
+        };
         const section = (title, meta) => {
             const node = add(container, 'section', '', 'momentum-workbench-section');
             const heading = add(node, 'div', '', 'momentum-workbench-section-heading');
@@ -164,7 +170,7 @@
         for (const event of payload.calendar.events) {
             const row = add(calendarSection, 'div', '', 'momentum-workbench-row momentum-calendar-row');
             add(row, 'strong', event.title);
-            add(row, 'span', event.allDay ? `${dateTime(event.start).split(' at ')[0]} · all day` : dateTime(event.start), 'momentum-workbench-row-meta');
+            add(row, 'span', event.allDay ? `${dateOnly(event.start)} · all day` : dateTime(event.start), 'momentum-workbench-row-meta');
         }
         const inboxMeta = payload.inbox.total === null ? 'unavailable' : `${state.kind === 'cached' ? 'cached · ' : ''}${payload.inbox.state}`;
         const inboxSection = section('Inbox', inboxMeta);
