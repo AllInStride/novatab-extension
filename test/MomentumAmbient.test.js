@@ -4,6 +4,9 @@ const {
   parseAmbientPayload,
   parseNativeGrant,
   resolveAmbientState,
+  parseWorkbenchPayload,
+  loadWorkbench,
+  openWorkbench,
 } = require('../momentum-ambient.js');
 
 const live = {
@@ -32,7 +35,59 @@ test('shipped browser asset is bound to the exact Momentum bridge contract', () 
   ]);
   expect(contract.schemaVersion).toBe(1);
   expect(contract.extensionId).toBe('hldcbbiabmeilbmcgeaecmkmhmllagcg');
+  expect(contract.nativeHostPath).toBe('/Applications/Momentum.app/Contents/MacOS/momentum-command-native-host');
   expect(createHash('sha256').update(asset).digest('hex')).toBe(contract.browserAssetSha256);
+});
+
+test('ships a CSS-only dashboard stylesheet without embedded Markdown or JavaScript', () => {
+  const css = readFileSync(resolve(__dirname, '..', 'new_tab.css'), 'utf8');
+  expect(css).toContain('Momentum Integrated Workbench: bounded NovaTab dashboard.');
+  expect(css).not.toMatch(/```|^---$|document\.addEventListener|new_tab\.js - Enhanced/m);
+});
+
+test('accepts only the bounded exact Workbench projection', () => {
+  const value = {
+    schemaVersion: 2, observedAt: '2026-09-05T12:00:00.000Z',
+    now: { state: 'live', fetchedAt: '2026-09-05T12:00:00.000Z', tasks: live.tasks },
+    calendar: { state: 'live', fetchedAt: '2026-09-05T12:00:00.000Z', total: 0, events: [] },
+    inbox: { state: 'complete', total: 3, tasks: 2, pulse: 1 },
+    shipping: { state: 'complete', total: 0, items: [] },
+  };
+  expect(parseWorkbenchPayload(value)).toEqual(value);
+  expect(() => parseWorkbenchPayload({ ...value, authorization: 'no' })).toThrow('invalid_ambient_payload');
+  expect(() => parseWorkbenchPayload({ ...value, now: { ...value.now, tasks: [...live.tasks, live.tasks[0], live.tasks[0]] } })).toThrow('invalid_ambient_payload');
+});
+
+test('bounds a hanging Workbench launch at five seconds', async () => {
+  jest.useFakeTimers();
+  try {
+    const sendNativeMessage = jest.fn(() => new Promise(() => {}));
+    const pending = openWorkbench({ runtime: { sendNativeMessage } }, 'work', 'request-timeout');
+    const rejection = expect(pending).rejects.toThrow('timeout');
+    await jest.advanceTimersByTimeAsync(5_001);
+    await rejection;
+    expect(sendNativeMessage).toHaveBeenCalledWith(
+      'com.allinstride.momentum.novatab',
+      { schemaVersion: 1, action: 'open', requestId: 'request-timeout', target: 'work' },
+    );
+  } finally {
+    jest.useRealTimers();
+  }
+});
+
+test('uses only a current independently validated Workbench last-good view', async () => {
+  const payload = {
+    schemaVersion: 2, observedAt: '2026-09-05T12:00:00.000Z',
+    now: { state: 'unavailable', fetchedAt: null, tasks: [] },
+    calendar: { state: 'disabled', fetchedAt: null, total: null, events: [] },
+    inbox: { state: 'unavailable', total: null, tasks: null, pulse: null },
+    shipping: { state: 'unavailable', total: null, items: [] },
+  };
+  const chromeApi = { runtime: { sendNativeMessage: jest.fn().mockRejectedValue(new Error('offline')) }, storage: { local: {
+    get: jest.fn().mockResolvedValue({ momentumAmbientWorkbenchV2: payload }), set: jest.fn(),
+  } } };
+  await expect(loadWorkbench(chromeApi, new Date('2026-09-06T11:59:59.000Z'))).resolves.toEqual({ kind: 'cached', payload });
+  await expect(loadWorkbench(chromeApi, new Date('2026-09-06T12:00:01.000Z'))).resolves.toEqual({ kind: 'unavailable' });
 });
 
 test('normalizes only Chrome compatibility headers on the fixed Momentum loopback request', () => {
