@@ -231,6 +231,17 @@ Create PNG files in the `icons/` directory:
 
 ## 🤝 Contributing
 
+### Local verification
+
+Use Node.js 24 and run the locked test suite before opening or merging a pull request:
+
+```sh
+npm ci
+npm test -- --runInBand
+```
+
+For changes to the extension UI, also load the unpacked extension in Chrome and exercise the affected user workflow. GitHub Actions CI is manual-only: use it when a hosted Linux run will resolve a specific concern, rather than as a routine closeout step. Keep the local test result tied to the commit being merged.
+
 ### Bug Reports
 Please include:
 - Chrome version and operating system
