@@ -3,7 +3,7 @@
   "extensionId": "hldcbbiabmeilbmcgeaecmkmhmllagcg",
   "callerOrigin": "chrome-extension://hldcbbiabmeilbmcgeaecmkmhmllagcg",
   "nativeHostName": "com.allinstride.momentum.novatab",
-  "nativeHostPath": "/Applications/Momentum Command.app/Contents/MacOS/momentum-command-native-host",
+  "nativeHostPath": "/Applications/Momentum.app/Contents/MacOS/momentum-command-native-host",
   "nativeHostRequirement": "identifier \"com.allinstride.momentum.command.native-host\"",
-  "browserAssetSha256": "35b6a984f5faf0c08b566aca58b5d7c276df1055fac7f05448647dc865bcb774"
+  "browserAssetSha256": "39903ed93dcbed4f5d08129e970533c242b81e7a228fe5cd3b7a3d9263d330e3"
 }
