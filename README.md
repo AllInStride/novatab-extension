@@ -10,6 +10,18 @@
 
 3. **Configure settings** by right-clicking the extension icon and selecting "Options"
 
+### Home OS local catalog
+
+Home OS navigation uses `home-os-catalog.json` in the unpacked extension folder. This file is a local build artifact and is ignored by Git because it can contain private destinations. Before loading or reloading the extension, generate the catalog in Admin, copy it, and verify exact byte equality:
+
+```sh
+node /path/to/admin/scripts/home-os/generate-home-os-catalog.mjs --generated-at "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+node scripts/sync-home-os-catalog.mjs /path/to/admin/docs/home-os/generated/novatab-registry.json
+node scripts/verify-home-os-catalog.mjs /path/to/admin/docs/home-os/generated/novatab-registry.json
+```
+
+Run the last two commands from this extension folder. The checked-in tests use fabricated destinations. If the local catalog is missing, NovaTab keeps its navigation shell and saved links and labels the catalog unavailable.
+
 ## ✨ What's New in v1.1.1
 
 ### 🎨 User Experience Enhancements

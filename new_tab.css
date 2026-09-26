@@ -94,6 +94,38 @@ body {
     margin: 0 auto;
 }
 
+/* Home OS HQ keeps the existing Momentum strip above a read-only doorway. */
+.home-os-layout { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 28px; align-items: start; }
+.home-os-rail { position: sticky; top: 20px; padding: 18px; border: 1px solid #d6dde5; border-radius: 16px; background: rgba(255,255,255,.92); }
+.home-os-eyebrow { margin: 0; color: #526477; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .09em; }
+.home-os-brand { margin: 5px 0 22px; font-size: 24px; line-height: 1.1; color: #15324c; }
+.home-os-nav { display: grid; gap: 3px; }
+.home-os-nav-button { width: 100%; border: 0; border-radius: 9px; padding: 10px 12px; background: transparent; color: #183850; text-align: left; font: inherit; font-weight: 600; cursor: pointer; }
+.home-os-nav-button:hover, .home-os-nav-button[aria-current="page"] { background: #dceefa; }
+.home-os-nav-button[aria-current="page"] { color: #07558d; }
+.home-os-search-button { margin-top: 12px; border: 1px solid #bfcdd9; font-size: 13px; }
+.home-os-content { min-width: 0; border: 1px solid #d6dde5; border-radius: 16px; padding: 22px; background: rgba(255,255,255,.94); }
+.home-os-title { margin: 0 0 4px; color: #15324c; font-size: 26px; }
+.home-os-freshness { margin: 0 0 12px; color: #3f5366; font-size: 12px; }
+.home-os-intro { margin: 0 0 18px; color: #506172; }
+.home-os-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 12px; }
+.home-os-card { min-width: 0; border: 1px solid #dbe2e9; border-radius: 12px; padding: 14px; background: #fff; }
+.home-os-card h3 { margin: 0 0 6px; color: #183850; font-size: 16px; }
+.home-os-meta { margin: 0 0 8px; color: #526477; font-size: 12px; }
+.home-os-action { margin: 0 0 10px; color: #344b5f; font-size: 13px; }
+.home-os-unlinked { margin: 8px 0 0; color: #687584; font-size: 12px; }
+.home-os-link { display: block; padding: 6px 0; color: #07558d; font-size: 13px; overflow-wrap: anywhere; }
+.home-os-link-meta { color: #526477; font-size: 11px; }
+.home-os-custom { margin-top: 24px; border-top: 1px solid #dbe2e9; }
+.home-os-custom h3 { font-size: 17px; }
+.home-os-search[hidden], .home-os-custom[hidden] { display: none; }
+.home-os-search { position: fixed; z-index: 1000; inset: 9vh max(5vw, calc((100vw - 760px)/2)); overflow: auto; padding: 22px; border: 1px solid #98afc3; border-radius: 16px; background: #fff; box-shadow: 0 18px 80px rgba(12,32,53,.35); }
+.home-os-search-header { display: flex; justify-content: space-between; align-items: center; gap: 12px; font-weight: 700; }
+.home-os-search-input { display: block; width: 100%; margin: 12px 0 18px; padding: 12px; border: 1px solid #8da2b4; border-radius: 8px; font: inherit; }
+.home-os-search-close { border: 1px solid #8da2b4; border-radius: 8px; padding: 7px 12px; background: #fff; font: inherit; cursor: pointer; }
+.home-os-nav-button:focus-visible, .home-os-link:focus-visible, .home-os-search-close:focus-visible, .home-os-search-input:focus-visible { outline: 3px solid #007aff; outline-offset: 3px; }
+@media (max-width: 760px) { .home-os-layout { grid-template-columns: 1fr; gap: 14px; } .home-os-rail { position: static; } .home-os-nav { grid-template-columns: repeat(3, minmax(0, 1fr)); } .home-os-nav-button { font-size: 12px; } .home-os-search { inset: 3vh 3vw; } }
+
 .momentum-ambient {
     width: 100%;
     margin: 0 0 24px;
