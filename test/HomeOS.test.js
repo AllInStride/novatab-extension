@@ -24,6 +24,14 @@ const catalog = {
 };
 
 describe('Home OS bundled catalog', () => {
+  test('extension-page CSP permits fetching its bundled catalog', () => {
+    const manifest = JSON.parse(fs.readFileSync(path.join(__dirname, '../manifest.json'), 'utf8'));
+    const connect = manifest.content_security_policy.extension_pages
+      .split(';').map((directive) => directive.trim())
+      .find((directive) => directive.startsWith('connect-src '));
+    expect(connect).toBeDefined();
+    expect(connect.split(/\s+/)).toContain("'self'");
+  });
   test('conforms to the generated catalog contract', () => {
     expect(catalog.schemaVersion).toBe(1);
     expect(HomeOS.validateCatalog(catalog)).toBe(true);
