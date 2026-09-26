@@ -37,9 +37,12 @@ collateral/*.bak
 # Ignore coverage reports
 coverage/
 
+# Generated local navigation includes private destinations; copy it at build time.
+home-os-catalog.json
+
 # Ignore IDE files
 .idea/
 *.iml
 
 # Ignore test output
-*.test.js.snap 
+*.test.js.snap
